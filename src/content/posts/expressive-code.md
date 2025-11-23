@@ -1,27 +1,27 @@
 ---
-title: Expressive Code Example
+title: Expressive Code 示例
 published: 2024-04-10
-description: How code blocks look in Markdown using Expressive Code.
+description: 使用 Expressive Code 在 Markdown 中展示代码块的效果。
 tags: [Markdown, Blogging, Demo]
 category: Examples
 draft: false
 ---
 
-Here, we'll explore how code blocks look using [Expressive Code](https://expressive-code.com/). The provided examples are based on the official documentation, which you can refer to for further details.
+在这里，我们将探索使用 [Expressive Code](https://expressive-code.com/) 展示代码块的效果。提供的示例基于官方文档，您可以参考文档以获取更多详细信息。
 
 ## Expressive Code
 
-### Syntax Highlighting
+### 语法高亮
 
-[Syntax Highlighting](https://expressive-code.com/key-features/syntax-highlighting/)
+[语法高亮](https://expressive-code.com/key-features/syntax-highlighting/)
 
-#### Regular syntax highlighting
+#### 常规语法高亮
 
 ```js
-console.log('This code is syntax highlighted!')
+console.log("This code is syntax highlighted!");
 ```
 
-#### Rendering ANSI escape sequences
+#### 渲染 ANSI 转义序列
 
 ```ansi
 ANSI colors:
@@ -40,14 +40,14 @@ Full RGB colors:
 Text formatting: [1mBold[0m [2mDimmed[0m [3mItalic[0m [4mUnderline[0m
 ```
 
-### Editor & Terminal Frames
+### 编辑器和终端窗口
 
-[Editor & Terminal Frames](https://expressive-code.com/key-features/frames/)
+[编辑器和终端窗口](https://expressive-code.com/key-features/frames/)
 
-#### Code editor frames
+#### 代码编辑器窗口
 
 ```js title="my-test-file.js"
-console.log('Title attribute example')
+console.log("Title attribute example");
 ```
 
 ---
@@ -57,7 +57,7 @@ console.log('Title attribute example')
 <div>File name comment example</div>
 ```
 
-#### Terminal frames
+#### 终端窗口
 
 ```bash
 echo "This terminal frame has no title"
@@ -69,7 +69,7 @@ echo "This terminal frame has no title"
 Write-Output "This one has a title!"
 ```
 
-#### Overriding frame types
+#### 覆盖窗口类型
 
 ```sh frame="none"
 echo "Look ma, no frame!"
@@ -83,11 +83,11 @@ function Watch-Tail { Get-Content -Tail 20 -Wait $args }
 New-Alias tail Watch-Tail
 ```
 
-### Text & Line Markers
+### 文本和行标记
 
-[Text & Line Markers](https://expressive-code.com/key-features/text-markers/)
+[文本和行标记](https://expressive-code.com/key-features/text-markers/)
 
-#### Marking full lines & line ranges
+#### 标记整行和行范围
 
 ```js {1, 4, 7-8}
 // Line 1 - targeted by line number
@@ -104,11 +104,11 @@ New-Alias tail Watch-Tail
 
 ```js title="line-markers.js" del={2} ins={3-4} {6}
 function demo() {
-  console.log('this line is marked as deleted')
+  console.log("this line is marked as deleted");
   // This line and the next one are marked as inserted
-  console.log('this is the second inserted line')
+  console.log("this is the second inserted line");
 
-  return 'this line uses the neutral default marker type'
+  return "this line uses the neutral default marker type";
 }
 ```
 
@@ -126,7 +126,7 @@ function demo() {
 >
   {children &&
     !active &&
-    (typeof children === 'string' ? <span>{children}</span> : children)}
+    (typeof children === "string" ? <span>{children}</span> : children)}
 </button>
 ```
 
@@ -137,17 +137,14 @@ function demo() {
 <button
   role="button"
   {...props}
-
   value={value}
   className={buttonClassName}
-
   disabled={disabled}
   active={active}
 >
-
   {children &&
     !active &&
-    (typeof children === 'string' ? <span>{children}</span> : children)}
+    (typeof children === "string" ? <span>{children}</span> : children)}
 </button>
 ```
 
@@ -186,19 +183,19 @@ this is a regular line
 ```js "given text"
 function demo() {
   // Mark any given text inside lines
-  return 'Multiple matches of the given text are supported';
+  return "Multiple matches of the given text are supported";
 }
 ```
 
 #### Regular expressions
 
 ```ts /ye[sp]/
-console.log('The words yes and yep will be marked.')
+console.log("The words yes and yep will be marked.");
 ```
 
 #### Escaping forward slashes
 
-```sh /\/ho.*\//
+```sh //ho.*//
 echo "Test" > /home/test.txt
 ```
 
@@ -206,7 +203,7 @@ echo "Test" > /home/test.txt
 
 ```js "return true;" ins="inserted" del="deleted"
 function demo() {
-  console.log('These are inserted and deleted marker types');
+  console.log("These are inserted and deleted marker types");
   // The return statement uses the default marker type
   return true;
 }
@@ -221,7 +218,7 @@ function demo() {
 ```js wrap
 // Example with wrap
 function getLongString() {
-  return 'This is a very long string that will most probably not fit into the available space unless the container is extremely wide'
+  return "This is a very long string that will most probably not fit into the available space unless the container is extremely wide";
 }
 ```
 
@@ -230,7 +227,7 @@ function getLongString() {
 ```js wrap=false
 // Example with wrap=false
 function getLongString() {
-  return 'This is a very long string that will most probably not fit into the available space unless the container is extremely wide'
+  return "This is a very long string that will most probably not fit into the available space unless the container is extremely wide";
 }
 ```
 
@@ -239,7 +236,7 @@ function getLongString() {
 ```js wrap preserveIndent
 // Example with preserveIndent (enabled by default)
 function getLongString() {
-  return 'This is a very long string that will most probably not fit into the available space unless the container is extremely wide'
+  return "This is a very long string that will most probably not fit into the available space unless the container is extremely wide";
 }
 ```
 
@@ -248,7 +245,7 @@ function getLongString() {
 ```js wrap preserveIndent=false
 // Example with preserveIndent=false
 function getLongString() {
-  return 'This is a very long string that will most probably not fit into the available space unless the container is extremely wide'
+  return "This is a very long string that will most probably not fit into the available space unless the container is extremely wide";
 }
 ```
 
@@ -258,29 +255,29 @@ function getLongString() {
 
 ```js collapse={1-5, 12-14, 21-24}
 // All this boilerplate setup code will be collapsed
-import { someBoilerplateEngine } from '@example/some-boilerplate'
-import { evenMoreBoilerplate } from '@example/even-more-boilerplate'
+import { someBoilerplateEngine } from "@example/some-boilerplate";
+import { evenMoreBoilerplate } from "@example/even-more-boilerplate";
 
-const engine = someBoilerplateEngine(evenMoreBoilerplate())
+const engine = someBoilerplateEngine(evenMoreBoilerplate());
 
 // This part of the code will be visible by default
-engine.doSomething(1, 2, 3, calcFn)
+engine.doSomething(1, 2, 3, calcFn);
 
 function calcFn() {
   // You can have multiple collapsed sections
-  const a = 1
-  const b = 2
-  const c = a + b
+  const a = 1;
+  const b = 2;
+  const c = a + b;
 
   // This will remain visible
-  console.log(`Calculation result: ${a} + ${b} = ${c}`)
-  return c
+  console.log(`Calculation result: ${a} + ${b} = ${c}`);
+  return c;
 }
 
 // All this code until the end of the block will be collapsed again
-engine.closeConnection()
-engine.freeMemory()
-engine.shutdown({ reason: 'End of example boilerplate code' })
+engine.closeConnection();
+engine.freeMemory();
+engine.shutdown({ reason: "End of example boilerplate code" });
 ```
 
 ## Line Numbers
@@ -291,21 +288,21 @@ engine.shutdown({ reason: 'End of example boilerplate code' })
 
 ```js showLineNumbers
 // This code block will show line numbers
-console.log('Greetings from line 2!')
-console.log('I am on line 3')
+console.log("Greetings from line 2!");
+console.log("I am on line 3");
 ```
 
 ---
 
 ```js showLineNumbers=false
 // Line numbers are disabled for this block
-console.log('Hello?')
-console.log('Sorry, do you know what line I am on?')
+console.log("Hello?");
+console.log("Sorry, do you know what line I am on?");
 ```
 
 ### Changing the starting line number
 
 ```js showLineNumbers startLineNumber=5
-console.log('Greetings from line 5!')
-console.log('I am on line 6')
+console.log("Greetings from line 5!");
+console.log("I am on line 6");
 ```
