@@ -1,0 +1,46 @@
+name: Deploy to GitHub Pages
+
+on:
+  # 每次推送到 main 分支时触发
+  push:
+    branches: [ main ]
+  # 允许在 Actions 标签页手动触发
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout your repository using git
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install, build, and upload your site
+        uses: withastro/action@v2
+        with:
+            # 这里的命令要和你 package.json 中的 build 脚本一致
+            # 你的 build 脚本是 "astro build && pagefind --site dist"
+            # withastro/action 会自动运行 build，但我们需要确保 pagefind 也被运行
+            # 所以我们显式指定 install 和 build 命令
+            package-manager: pnpm
+            node-version: 20
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
