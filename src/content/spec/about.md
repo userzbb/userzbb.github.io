@@ -1,10 +1,10 @@
-# About
+# 关于
 
 fork from [Fuwari](https://github.com/saicaca/fuwari).
 
 ::github{repo="saicaca/fuwari"}
 
-> ### Sources of images used in this site
+> ### 网站图源
 >
 > - [ToReNo](https://www.pixiv.net/artworks/87387518)
 > - [LoliApi](https://docs.loliapi.com/)
