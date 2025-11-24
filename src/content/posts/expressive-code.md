@@ -1,27 +1,27 @@
 ---
-title: Expressive Code 示例
+title: Expressive Code Example
 published: 2024-04-10
-description: 使用 Expressive Code 在 Markdown 中展示代码块的效果。
+description: How code blocks look in Markdown using Expressive Code.
 tags: [Markdown, Blogging, Demo]
 category: Examples
-draft: false
+draft: true
 ---
 
-在这里，我们将探索使用 [Expressive Code](https://expressive-code.com/) 展示代码块的效果。提供的示例基于官方文档，您可以参考文档以获取更多详细信息。
+Here, we'll explore how code blocks look using [Expressive Code](https://expressive-code.com/). The provided examples are based on the official documentation, which you can refer to for further details.
 
 ## Expressive Code
 
-### 语法高亮
+### Syntax Highlighting
 
-[语法高亮](https://expressive-code.com/key-features/syntax-highlighting/)
+[Syntax Highlighting](https://expressive-code.com/key-features/syntax-highlighting/)
 
-#### 常规语法高亮
+#### Regular syntax highlighting
 
 ```js
 console.log("This code is syntax highlighted!");
 ```
 
-#### 渲染 ANSI 转义序列
+#### Rendering ANSI escape sequences
 
 ```ansi
 ANSI colors:
@@ -40,11 +40,11 @@ Full RGB colors:
 Text formatting: [1mBold[0m [2mDimmed[0m [3mItalic[0m [4mUnderline[0m
 ```
 
-### 编辑器和终端窗口
+### Editor & Terminal Frames
 
-[编辑器和终端窗口](https://expressive-code.com/key-features/frames/)
+[Editor & Terminal Frames](https://expressive-code.com/key-features/frames/)
 
-#### 代码编辑器窗口
+#### Code editor frames
 
 ```js title="my-test-file.js"
 console.log("Title attribute example");
@@ -57,7 +57,7 @@ console.log("Title attribute example");
 <div>File name comment example</div>
 ```
 
-#### 终端窗口
+#### Terminal frames
 
 ```bash
 echo "This terminal frame has no title"
@@ -69,7 +69,7 @@ echo "This terminal frame has no title"
 Write-Output "This one has a title!"
 ```
 
-#### 覆盖窗口类型
+#### Overriding frame types
 
 ```sh frame="none"
 echo "Look ma, no frame!"
@@ -83,11 +83,11 @@ function Watch-Tail { Get-Content -Tail 20 -Wait $args }
 New-Alias tail Watch-Tail
 ```
 
-### 文本和行标记
+### Text & Line Markers
 
-[文本和行标记](https://expressive-code.com/key-features/text-markers/)
+[Text & Line Markers](https://expressive-code.com/key-features/text-markers/)
 
-#### 标记整行和行范围
+#### Marking full lines & line ranges
 
 ```js {1, 4, 7-8}
 // Line 1 - targeted by line number
