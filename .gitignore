@@ -29,3 +29,11 @@ yarn.lock
 # ide
 .idea
 *.iml
+
+# obsidian
+src/content/posts/.obsidian
+
+# vscode
+.vscode
+
+
