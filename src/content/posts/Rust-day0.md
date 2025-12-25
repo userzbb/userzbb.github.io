@@ -1,9 +1,9 @@
 ---
 title: Rust中常见的编程概念
 published: 2025-11-25
-description: 遮蔽与mut的区别
+description: "Rust 程序设计语言 第三章内容 常见编程概念"
 image: https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Rustacean-orig-noshadow.svg/768px-Rustacean-orig-noshadow.svg.png?20220509231635
-tags: [rust]
+tags: ["rust"]
 category: Rust
 draft: false
 ---
