@@ -2,7 +2,7 @@
 
 该项目目前仍处于维护中，如果需要更新，请按照以下步骤进行：
 
-首先在 `package.json` 中确认版本号，或者在这里或 [Release](https://github.com/Motues/Momo/releases) 中查看改动记录认。
+首先在 `package.json` 中确认版本号，或者在这里或 [Release](https://github.com/Motues/Momo/releases) 中查看改动记录。
 
 当只有项目的配置文件的结构修改后，才会对项目的版本号进行修改。项目配置文件即和网站布局内容相关的文件，包括`astro.config.mjs`、`src/config.ts`、`src/content.config.ts`、`src/i18n/`文件夹下的文件。
 
@@ -12,20 +12,37 @@
 
 可以直接克隆本项目，然后将自己原本的配置文件覆盖到新项目，然后运行 `pnpm install` 安装依赖，然后运行 `pnpm build` 本地编译，然后运行 `pnpm preview` 预览编译后的项目。
 
+在本仓库内更新时，可以直接执行 `pnpm momo update`：它会先把你自己修改的 `src/config.ts` 备份到 `.backup/`，再拉取远端更新并安装依赖，最后列出本次更新中**需要手工合并的配置文件**。如果更新后 `src/config.ts` 出了问题，可以用 `pnpm momo restore` 回滚到更新前的状态。
+
 ## 版本号改变
 
 每次版本号改变时，都会在这里更新的改动记录。更新需要参考具体的记录修改对应的配置文件。
 
 下面是一般修改建议。
 
-* **`astro.config.mjs` 修改**：一般直接覆盖即可，然后修改 `siteConfig` 中的 `site` 字段和 `i18n` 字段为自己的信息
+* **`astro.config.mjs` 修改**：一般直接覆盖即可，其中的 `site` 与 `i18n` 会自动读取 `src/config.ts` 的 `siteConfig.rootSiteUrl`、`i18nConfig.defaultLanguage`、`i18nConfig.supportedLanguages`
 * **`config.ts` 修改**：需要按照要求更新填写 `config.ts` 中新添加或修改的配置信息
 * **`content.config.ts` 修改**：一般为文章添加了新的 frontmatter 配置，需要按照要求对文章添加新的配置项
-* **`src/i18n/` 修改**：一般为添加了新的国际化翻译，直接覆盖即可，然后注意修改 `cover.title` 和 `cover.subtitle` 字段为自己的信息
+* **`src/i18n/` 修改**：一般为添加了新的国际化翻译，直接覆盖即可。
 
 ## 版本信息
 
 > 版本号采用 `YY.MM.DD` 的格式
+
+### 26.9.10
+
+> 本次更新包含**破坏性配置变更**，请仔细阅读下面的更新说明！
+
+* 统一配置文件 `config.ts`，统一管理默认语言、支持语言与各页面的 Cover 文案等
+* 新增命令行工具 `pnpm momo`，支持备份配置，恢复，更新等功能
+* 404 页面重新设计；页脚图标间距微调
+* 统一工具函数的命名方式
+* 更新 CMS 管理后台，修复读取文章信息慢的问题，文章列表支持列宽按内容自适应
+* 本次更新对配置文件 `src/config.ts`、`src/i18n/language/*.ts`、`astro.config.mjs` 进行了修改：
+    * `src/config.ts`：新增 `i18nConfig`，并为 `siteConfig` 添加 `rootSiteUrl`
+    * `src/i18n/language/*.ts`：删除原 `cover` 字段，从 `config.ts` 中引用
+    * `astro.config.mjs`：`site`、`i18n` 改为引用 `src/config.ts` 的配置
+* 升级后需要清除本地缓存（`node_modules`、`.astro`、`dist`）再重新 `pnpm install`，可执行 `pnpm momo clean --all` 快速完成
 
 ### 26.8.15
 

@@ -5,7 +5,7 @@
   import Icon from '@iconify/svelte';
   import i18nit from '@i18n/translation';
   import { formatMonthDay } from '@/utils/time'
-  import { getRelativeLocaleUrl } from '@utils/url-utils';
+  import { getRelativeLocaleUrl } from '@utils/urlUtils';
 
   export let sortedPosts = [];
   export let currentLang = "zh-cn";

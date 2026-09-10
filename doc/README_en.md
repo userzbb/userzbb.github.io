@@ -2,7 +2,7 @@
 
 <div align="center">
     <img src="./images/index-light-en.jpg">
-    <p>A nimimal blog template build with <a href="https://astro.build/">Astro</a></p>
+    <p>A minimal blog template build with <a href="https://astro.build/">Astro</a></p>
     <small><a href="../README.md">简体中文</a></small> <small><ins>English</ins></small>
 </div>
 
@@ -18,9 +18,13 @@ Momo originates from Xiaohongshu📕, serving as the default nickname for every 
 * **Mobile Adaptation**: Components optimized for mobile devices, delivering the same experience as desktop browsers
 * **Commenting**: Supports local deployment and Cloudflare deployment. See [Backend](https://github.com/Motues/Momo-Backend) for details
 * **Extensive Markdown syntax**: Supports Katex, Typst, and Alert components, GitHub cards, custom syntax, and more
+* **Local CMS**: Start it with `pnpm cms` to edit posts with live preview instead of editing Markdown by hand
+* **Command line tool**: `pnpm momo` provides config backup/restore, one-command updates, new post creation and environment checks
 * Other core features: Article categories, directory, RSS subscription, text statistics, reading time
 
 ## 🚀 Quick Start
+
+> Requirements: Node.js **>= 22** (24 LTS recommended) and [pnpm](https://pnpm.io/)
 
 1. Clone this project
     ```bash
@@ -34,16 +38,20 @@ Momo originates from Xiaohongshu📕, serving as the default nickname for every 
 
 Refer to the [Configuration Guide](./config_en.md). For detailed information, visit [Momo](https://momo.motues.top/en/intro/config) and read the corresponding articles.
 
+Site information, theme switches, languages and the Cover text of each page are configured in `src/config.ts`; the `site` and `i18n` fields of `astro.config.mjs` read from that file automatically.
+
 ## 📚 Updating
 
 Refer to the [Update Guide](./release_en.md) for instructions on updating your project. Visit [Momo](https://momo.motues.top/en/intro/release) for detailed information.
+
+Run `pnpm momo update` to do it automatically: it backs up your config, pulls the update and installs dependencies, then lists the config files that need manual merging.
 
 ## 🍃 Branch
 
 Below are some branches that are maintained on an irregular basis; we cannot guarantee that they will remain in sync with the `main` branch.
 
 * `memos`: Implements the Memos card feature
-* `v6`: Upgrades dependencies to Astro v6
+* `v5`: Version v5—no longer supported
 
 ## ⚡ Commands
 
@@ -53,10 +61,17 @@ All commands below can be executed in the root directory
 | --- | --- |
 | `pnpm install` | Install dependencies |
 | `pnpm dev` | Start local server at `http://localhost:4321` |
-| `pnpm build` | Build release version to `./dist` directory |
+| `pnpm build` | Build release version to `./dist` (including the pagefind search index) |
 | `pnpm preview` | Preview built release version |
 | `pnpm astro ...` | Run `astro` commands, e.g., `astro add` |
-| `pnpm newpost <path> <lang>` | Create a new post, e.g., `pnpm newpost docs/test.md zh-cn`. Language can be omitted; defaults to `zh-cn` |
+| `pnpm cms` | Start the local CMS at `http://localhost:5188` (run `pnpm install` first) |
+| `pnpm momo new [path]` | Create a new post; the path defaults to a date based one, e.g. `pnpm momo new docs/test` |
+| `pnpm momo backup` | Back up `src/config.ts` to `.backup/` (add `--config` for every config file, `--all` to also include posts and images) |
+| `pnpm momo restore [name]` | Restore from a backup (the latest one by default) |
+| `pnpm momo update` | Pull the repository update and sync dependencies (backs up `src/config.ts` first) |
+| `pnpm momo clean` | Remove build output and caches (add `--all` to also remove `node_modules`) |
+| `pnpm momo doctor` | Check the environment, dependencies and project status |
+| `pnpm momo --help` | Show every momo command and option |
 
 
 ## 📚 References

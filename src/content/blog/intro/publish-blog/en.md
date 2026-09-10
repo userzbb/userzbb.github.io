@@ -10,6 +10,11 @@ slugId: momo/intro/publish
 
 ## Creating Article Files
 
+:::tip
+Creating posts from the command line is recommended: `pnpm momo new [path]` creates the folder and the language file with a spec-compliant frontmatter block (omit the path to get a date based one, e.g. `pnpm momo new`).
+You can also create and edit posts visually in the CMS started by `pnpm cms`.
+:::
+
 First, create a new folder under the `src/content/blog/` directory. You can create it directly within this directory or nest it within subdirectories.
 
 For example, create a folder named `src/content/blog/my-first-post/`, or create `src/content/blog/posts/my-first-post/` within a subdirectory. Your article will be published to the corresponding route based on the file's relative path (relative to `src/content/`), such as `/blog/my-first-post`.
@@ -18,7 +23,7 @@ For internationalization, use `<language>.md` naming conventions to distinguish 
 
 :::important
 * A default language version must exist. When generating pages, if a language version is missing for the current article, the default language version will be used as the article content.
-* The languages used must be configured in `astro.config.mjs`.
+* The languages used must be listed in `i18nConfig.supportedLanguages` in `src/config.ts` (`astro.config.mjs` reads it automatically).
 :::
 
 ## Writing Article Metadata

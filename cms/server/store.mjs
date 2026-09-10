@@ -1,13 +1,79 @@
 // store.mjs — 博客文章文件（src/content/blog/**/*.md）的统一读写层
 import matter from 'gray-matter'
 import { readdir, readFile, writeFile, mkdir, rm, stat } from 'node:fs/promises'
-import { join, dirname, basename, extname } from 'node:path'
+import { join, dirname, basename, extname, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 // 博客内容根目录：cms/server/ -> ../../src/content/blog/
 export const BLOG_DIR = fileURLToPath(new URL('../../src/content/blog/', import.meta.url))
 
 export const LANGS = ['zh-cn', 'en']
+
+// 并发读取上限：文章较多时，逐个 await 读取会明显拖慢一次扫描
+const READ_CONCURRENCY = 32
+
+// ---------- 解析结果缓存 ----------
+// 之前每次请求（列表 / 概览 / 分类 / 字数）都会重新遍历目录、读取并解析所有 markdown，
+// 文章一多就非常慢。这里以 (mtimeMs, size) 作为缓存键：文件没变直接复用解析结果，
+// 只有文件真正变化（CMS 保存、外部编辑、git 切换）时才重新读取。
+// 保存/删除路径同时会主动失效缓存，双保险。
+const parseCache = new Map() // absPath -> { key, data, words }
+
+// 正文字数：忽略 frontmatter（已由 matter 剥离）与代码块/行内代码，中文字符 + 英文单词粗略统计
+function countWords(content) {
+  const body = content.replace(/```[\s\S]*?```/g, '').replace(/`[^`]*`/g, '')
+  return {
+    cjk: (body.match(/[\u4e00-\u9fff]/g) || []).length,
+    latin: (body.match(/[A-Za-z0-9]+/g) || []).length,
+  }
+}
+
+// 用 mtime + 文件大小作为缓存键；文件不存在返回 null
+async function fileKey(file) {
+  const st = await stat(file).catch(() => null)
+  if (!st?.isFile()) return null
+  return `${st.mtimeMs}:${st.size}`
+}
+
+// 读取并解析单个 markdown（带缓存）
+async function loadParsed(file) {
+  const key = await fileKey(file)
+  if (!key) return null
+  const cached = parseCache.get(file)
+  if (cached && cached.key === key) return cached
+  const raw = await readFile(file, 'utf-8').catch(() => null)
+  if (raw === null) return null
+  const parsed = matter(raw)
+  const entry = { key, data: parsed.data, words: countWords(parsed.content) }
+  parseCache.set(file, entry)
+  return entry
+}
+
+// 有界并发 map，返回值顺序与输入一致
+async function mapLimit(items, limit, fn) {
+  const results = new Array(items.length)
+  let cursor = 0
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (cursor < items.length) {
+      const i = cursor++
+      results[i] = await fn(items[i], i)
+    }
+  })
+  await Promise.all(workers)
+  return results
+}
+
+// 手动失效缓存（写入 / 删除路径使用）
+function forget(file) {
+  parseCache.delete(file)
+}
+
+function forgetUnder(dir) {
+  const prefix = dir.endsWith(sep) ? dir : dir + sep
+  for (const key of [...parseCache.keys()]) {
+    if (key.startsWith(prefix)) parseCache.delete(key)
+  }
+}
 
 // 校验相对路径（防止目录穿越）
 export function safeRel(rel) {
@@ -21,14 +87,19 @@ export function blogPath(rel) {
   return join(BLOG_DIR, ...rel.split('/'))
 }
 
-async function* walk(dir) {
+// 递归收集目录下所有文件；子目录并发读取，但拼接顺序与串行 DFS 完全一致
+async function walk(dir) {
   const entries = await readdir(dir, { withFileTypes: true })
+  const jobs = []
   for (const entry of entries) {
     if (entry.name.startsWith('.')) continue
     const full = join(dir, entry.name)
-    if (entry.isDirectory()) yield* walk(full)
-    else if (entry.isFile()) yield full
+    if (entry.isDirectory()) jobs.push(walk(full))
+    else if (entry.isFile()) jobs.push(Promise.resolve([full]))
   }
+  const out = []
+  for (const job of jobs) out.push(...(await job))
+  return out
 }
 
 export function dateStr(v) {
@@ -46,10 +117,17 @@ export function normalizeData(data) {
   return d
 }
 
-// 扫描所有文章（按文件夹分组，每个文件夹 = 一篇逻辑文章的多语言版本）
-export async function scanArticles() {
+// 每篇文章的“基准语言”：优先 zh-cn，否则取排序后的第一个（与旧实现一致）
+function baseLangOf(files) {
+  const langs = Object.keys(files).sort()
+  return { langs, baseLang: langs.includes('zh-cn') ? 'zh-cn' : langs[0] }
+}
+
+// 单次遍历目录，把 .md 文件按“文章路径 -> 语言版本文件”分组
+async function collectArticleFiles() {
   const byPath = new Map()
-  for await (const file of walk(BLOG_DIR)) {
+  const all = []
+  for (const file of await walk(BLOG_DIR)) {
     if (extname(file) !== '.md') continue
     if (basename(file).startsWith('_')) continue
     const rel = file.slice(BLOG_DIR.length).replace(/\\/g, '/').replace(/^\//, '')
@@ -57,32 +135,48 @@ export async function scanArticles() {
     const lang = parts.pop().replace(/\.md$/, '')
     if (!LANGS.includes(lang)) continue
     const path = parts.join('/')
-    if (!byPath.has(path)) byPath.set(path, { files: {} })
-    byPath.get(path).files[lang] = file
+    let entry = byPath.get(path)
+    if (!entry) byPath.set(path, (entry = { files: {} }))
+    entry.files[lang] = file
+    all.push(file)
   }
+  // 清理已删除文件残留的缓存，避免长期占用内存
+  if (parseCache.size) {
+    const alive = new Set(all)
+    for (const key of parseCache.keys()) if (!alive.has(key)) parseCache.delete(key)
+  }
+  return { byPath, all }
+}
 
-  const articles = []
-  for (const [path, { files }] of byPath) {
-    const langs = Object.keys(files).sort()
-    let base = null
-    const fileData = {}
-    for (const lang of langs) {
-      const { data } = matter(await readFile(files[lang], 'utf-8'))
-      fileData[lang] = data
-      if (lang === 'zh-cn' || !base) base = data
-    }
-    articles.push({
-      path,
-      langs,
-      title: base?.title || '',
-      description: base?.description || '',
-      category: base?.category || '',
-      pubDate: dateStr(base?.pubDate),
-      draft: base?.draft ?? false,
-      pinTop: base?.pinTop ?? 0,
-    })
+// 由 frontmatter 生成列表项
+function toSummary(path, langs, data) {
+  const d = data || {}
+  return {
+    path,
+    langs,
+    title: d.title || '',
+    description: d.description || '',
+    category: d.category || '',
+    pubDate: dateStr(d.pubDate),
+    draft: d.draft ?? false,
+    pinTop: d.pinTop ?? 0,
   }
-  return articles
+}
+
+// 扫描所有文章（按文件夹分组，每个文件夹 = 一篇逻辑文章的多语言版本）
+// 列表只需要基准语言的 frontmatter，因此不再读取其它语言版本的文件
+export async function scanArticles() {
+  const { byPath } = await collectArticleFiles()
+  const paths = [...byPath.keys()]
+  const parsed = await mapLimit(paths, READ_CONCURRENCY, (path) => {
+    const { files } = byPath.get(path)
+    return loadParsed(files[baseLangOf(files).baseLang])
+  })
+  return paths.map((path, i) => {
+    const { files } = byPath.get(path)
+    const { langs } = baseLangOf(files)
+    return toSummary(path, langs, parsed[i]?.data)
+  })
 }
 
 // 读取一篇文章的全部语言版本
@@ -90,16 +184,15 @@ export async function readArticle(path) {
   const rel = safeRel(path)
   if (!rel) return null
   const dir = blogPath(rel)
-  const files = {}
-  for (const lang of LANGS) {
-    try {
-      const raw = await readFile(join(dir, `${lang}.md`), 'utf-8')
+  const loaded = await Promise.all(
+    LANGS.map(async (lang) => {
+      const raw = await readFile(join(dir, `${lang}.md`), 'utf-8').catch(() => null)
+      if (raw === null) return null
       const { data, content } = matter(raw)
-      files[lang] = { content, data: normalizeData(data) }
-    } catch {
-      /* 该语言版本不存在 */
-    }
-  }
+      return [lang, { content, data: normalizeData(data) }]
+    }),
+  )
+  const files = Object.fromEntries(loaded.filter(Boolean))
   if (Object.keys(files).length === 0) return null
   return { path: rel, files }
 }
@@ -123,6 +216,7 @@ export async function saveArticle(path, lang, payload) {
     const file = join(blogPath(p), `${l}.md`)
     await mkdir(dirname(file), { recursive: true })
     await writeFile(file, matter.stringify(body || '', d), 'utf-8')
+    forget(file)
   }
 
   // 仅当 slugId 与当前文件夹路径一致（CMS 创建的文章，slugId == 路径）且确实被修改时，
@@ -145,6 +239,7 @@ export async function saveArticle(path, lang, payload) {
       }
     }
     await rm(oldDir, { recursive: true, force: true })
+    forgetUnder(oldDir)
     // 最后写入本次保存的内容（覆盖上面同语言的文件）
     await writeOne(newRel, lang, data, payload.body)
     return { path: newRel, moved: true }
@@ -175,7 +270,9 @@ export async function createArticle(path, lang) {
     pinTop: 0,
   })
   await mkdir(dir, { recursive: true })
-  await writeFile(join(dir, `${lang}.md`), matter.stringify('', data), 'utf-8')
+  const file = join(dir, `${lang}.md`)
+  await writeFile(file, matter.stringify('', data), 'utf-8')
+  forget(file)
   return { path: rel }
 }
 
@@ -187,6 +284,7 @@ export async function deleteArticle(path) {
   const st = await stat(dir).then((s) => s).catch(() => null)
   if (!st?.isDirectory()) return { error: '文章不存在' }
   await rm(dir, { recursive: true, force: true })
+  forgetUnder(dir)
   return { ok: true }
 }
 
@@ -205,34 +303,44 @@ export async function categoryStats() {
   return { total: list.length, drafts, categories }
 }
 
-// 概览统计：在前端展示文章信息（含正文字数，需读取全部文件内容）
+// 概览统计：文章元数据 + 正文字数（需读取全部文件内容）
+// 单次遍历目录、每个文件只读取一次；旧实现扫描了 3 遍目录并重复读取了全部文件
 export async function overviewStats() {
-  const base = await categoryStats()
-  const list = await scanArticles()
+  const { byPath, all } = await collectArticleFiles()
+  const parsed = await mapLimit(all, READ_CONCURRENCY, loadParsed)
+  const byFile = new Map(all.map((file, i) => [file, parsed[i]]))
 
+  const counts = new Map()
+  const list = []
+  let drafts = 0
   let pinned = 0
-  const langCount = { 'zh-cn': 0, en: 0 }
   let both = 0
-  for (const a of list) {
-    if (a.pinTop) pinned++
-    if (a.langs.includes('zh-cn')) langCount['zh-cn']++
-    if (a.langs.includes('en')) langCount.en++
-    if (a.langs.includes('zh-cn') && a.langs.includes('en')) both++
+  const langCount = { 'zh-cn': 0, en: 0 }
+
+  for (const [path, { files }] of byPath) {
+    const { langs, baseLang } = baseLangOf(files)
+    const summary = toSummary(path, langs, byFile.get(files[baseLang])?.data)
+    list.push(summary)
+    if (summary.draft) drafts++
+    if (summary.pinTop) pinned++
+    if (summary.category) counts.set(summary.category, (counts.get(summary.category) || 0) + 1)
+    if (langs.includes('zh-cn')) langCount['zh-cn']++
+    if (langs.includes('en')) langCount.en++
+    if (langs.includes('zh-cn') && langs.includes('en')) both++
   }
 
-  // 正文字数：忽略 frontmatter 与代码块/行内代码，中文字符 + 英文单词粗略统计
   let cjk = 0
   let latin = 0
-  for await (const file of walk(BLOG_DIR)) {
-    if (extname(file) !== '.md') continue
-    if (basename(file).startsWith('_')) continue
-    const lang = basename(file).replace(/\.md$/, '')
-    if (!LANGS.includes(lang)) continue
-    const { content } = matter(await readFile(file, 'utf-8'))
-    const body = content.replace(/```[\s\S]*?```/g, '').replace(/`[^`]*`/g, '')
-    cjk += (body.match(/[\u4e00-\u9fff]/g) || []).length
-    latin += (body.match(/[A-Za-z0-9]+/g) || []).length
+  for (const file of all) {
+    const words = byFile.get(file)?.words
+    if (!words) continue
+    cjk += words.cjk
+    latin += words.latin
   }
+
+  const categories = [...counts.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
 
   const recent = [...list]
     .sort(
@@ -243,11 +351,11 @@ export async function overviewStats() {
     .slice(0, 8)
 
   return {
-    total: base.total,
-    published: base.total - base.drafts,
-    drafts: base.drafts,
+    total: list.length,
+    published: list.length - drafts,
+    drafts,
     pinned,
-    categories: base.categories,
+    categories,
     langs: langCount,
     both,
     words: { cjk, latin, total: cjk + latin },

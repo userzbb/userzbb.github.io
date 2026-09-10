@@ -1,4 +1,5 @@
 import type { Translation } from "@i18n/key";
+import { i18nConfig } from "../../config"
 
 const translation: Translation = {
     header: {
@@ -7,20 +8,7 @@ const translation: Translation = {
         about: "关于",
         friends: "友链",
     },
-    cover: {
-        title: {
-            home: "欢迎来到Momo的博客",
-            archive: "文章归档",
-            about: "关于",
-            friends: "友链",
-        },
-        subTitle: {
-            home: "生活多彩！",
-            archive: "共 {count} 篇文章",
-            about: "一个极简的Blog模板",
-            friends: "有趣的灵魂",
-        }
-    },
+    cover: i18nConfig.translations["zh-cn"].Cover,
     toc: "目录",
     category: "分类",
     pageNavigation: {

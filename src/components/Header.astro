@@ -3,12 +3,12 @@ import "@styles/global.css"
 import { Icon } from "astro-icon/components"
 import { profileConfig, siteConfig } from "@/config"
 import ThemeIcon from "./control/ThemeIcon.astro"
-import { baseUrl } from "@utils/url-utils"
+import { baseUrl } from "@utils/urlUtils"
 
 import { i18n } from "astro:config/client";
 import i18nit from '@i18n/translation'
-import { getRelativeLocaleUrl } from '@utils/url-utils';
-import { getBlogEntrySort } from '@utils/content-utils';
+import { getRelativeLocaleUrl } from '@utils/urlUtils';
+import { getBlogEntrySort } from '@utils/contentUtils';
 
 const currentLang = Astro.currentLocale || i18n!.defaultLocale;
 const t = i18nit(currentLang);

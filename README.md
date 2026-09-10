@@ -17,9 +17,13 @@ Momo 取自小红书📕，每个新用户最初的昵称，象征着初始新�
 * **移动端适配**：组件针对移动端进行优化，拥有和电脑浏览器一样的流畅体验
 * **评论功能**：支持本地部署和 Cloudflare 部署，具体参考 [Backend](https://github.com/Motues/Momo-Backend)
 * **丰富的Markdown语法**：支持 KaTex，Typst，Alert 组件，GitHub 卡片，自定义语法等
+* **本地 CMS 管理后台**：`pnpm cms` 启动，可视化编辑文章与实时预览，无需手动改 Markdown
+* **命令行工具**：`pnpm momo` 提供配置备份/恢复、一键更新、新建文章、环境检查等能力
 * 其他基本功能：文章分类，目录，RSS订阅，字数统计，阅读时间
 
 ## 🚀 快速开始
+
+> 环境要求：Node.js **>= 22**（推荐 24 LTS），包管理使用 [pnpm](https://pnpm.io/zh/)
 
 1. 克隆本项目
     ```bash
@@ -33,16 +37,20 @@ Momo 取自小红书📕，每个新用户最初的昵称，象征着初始新�
 
 参考 [配置指南](./doc/config_zh-cn.md)，详细信息可以访问 [Momo](https://momo.motues.top/intro/config)，阅读对应文章获取详细信息。
 
+站点信息、主题开关、多语言与首页 Cover 文案统一在 `src/config.ts` 中配置；`astro.config.mjs` 的 `site` 与 `i18n` 会自动读取该文件的配置。
+
 ## 📚 更新
 
 参考 [更新指南](./doc/release_zh-cn.md)，介绍如何更新项目，详细信息可以访问 [Momo](https://momo.motues.top/intro/release)。
+
+执行 `pnpm momo update` 可以自动完成「备份配置 → 拉取更新 → 安装依赖」，并提示本次更新中需要手工合并的配置文件。
 
 ## 🍃 分支
 
 下面是一些分支，会不定期进行维护，无法保证与 `main` 分支一致
 
 * `memos`：实现 Memos 卡片功能
-* `v6`：将依赖升级到 Astro v6
+* `v5`：v5 版本，已经停止维护
 
 ## ⚡ 指令
 
@@ -52,11 +60,17 @@ Momo 取自小红书📕，每个新用户最初的昵称，象征着初始新�
 | --- | --- |
 | `pnpm install` | 安装依赖 |
 | `pnpm dev` | 启动本地服务器，运行在 `http://localhost:4321` |
-| `pnpm build` | 构建发布版本到 `./dist` 目录下 |
+| `pnpm build` | 构建发布版本到 `./dist` 目录下（含 pagefind 搜索索引） |
 | `pnpm preview` | 预览构建后的发布版本 |
 | `pnpm astro ...` | 运行 `astro` 命令，例如 `astro add` |
-| `pnpm newpost <path> <lang>` | 创建新文章，例如 `pnpm newpost docs/test.md zh-cn`，语言可以省略，默认为`zh-cn` |
 | `pnpm cms` | 启动本地 CMS 管理后台，运行在 `http://localhost:5188`（首次使用前先执行 `pnpm install`） |
+| `pnpm momo new [path]` | 新建文章，路径省略时按日期自动生成，例如 `pnpm momo new docs/test` |
+| `pnpm momo backup` | 备份 `src/config.ts` 到 `.backup/`（加 `--config` 备份全部配置文件，加 `--all` 再连同文章内容与图片） |
+| `pnpm momo restore [名称]` | 从备份恢复（默认最近一次） |
+| `pnpm momo update` | 拉取仓库更新并同步依赖（更新前自动备份 `src/config.ts`） |
+| `pnpm momo clean` | 清理构建产物与缓存（加 `--all` 连同 `node_modules`） |
+| `pnpm momo doctor` | 检查环境、依赖与项目状态 |
+| `pnpm momo --help` | 查看全部 momo 命令与选项 |
 
 
 ## 📚 参考

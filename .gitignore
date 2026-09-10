@@ -4,6 +4,9 @@ dist/
 # generated types
 .astro/
 
+# local backups created by `pnpm momo backup`
+.backup/
+
 # dependencies
 node_modules/
 
@@ -25,3 +28,6 @@ pnpm-debug.log*
 
 # vscode setting folder
 .vscode/
+
+# AI tools
+AGENT.md

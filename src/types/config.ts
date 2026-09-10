@@ -1,6 +1,7 @@
 export type SiteConfig = {
     title: string;
     subTitle: string;
+    rootSiteUrl?: string;
 
     favicon: string;
 

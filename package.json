@@ -1,13 +1,14 @@
 {
   "name": "momo",
   "type": "module",
-  "version": "26.8.15",
+  "version": "26.9.10",
   "scripts": {
     "dev": "astro dev",
     "build": "astro build && pagefind --site dist",
     "preview": "astro preview",
     "astro": "astro",
     "newpost": "node script/newpost.js",
+    "momo": "node script/momo/index.js",
     "cms": "cd cms && pnpm dev"
   },
   "dependencies": {

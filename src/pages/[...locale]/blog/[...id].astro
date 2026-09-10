@@ -16,10 +16,10 @@ import { i18n } from "astro:config/client";
 import i18nit from '@i18n/translation'
 import { Icon } from "astro-icon/components";
 
-import { blogCoverUrl } from '@/utils/url-utils'
+import { blogCoverUrl } from '@utils/urlUtils'
 import { formatFullDate } from '@/utils/time'
-import { getBlogEntrySort } from '@utils/content-utils'
-import { getRelativeLocaleUrl } from '@utils/url-utils';
+import { getBlogEntrySort } from '@utils/contentUtils'
+import { getRelativeLocaleUrl } from '@utils/urlUtils';
 
 
 const currentLang = Astro.currentLocale || i18n!.defaultLocale;

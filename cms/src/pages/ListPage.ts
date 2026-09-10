@@ -10,6 +10,10 @@ type ViewMode = 'card' | 'table'
 
 const VIEW_KEY = 'cms-list-view'
 
+interface AppRoot extends HTMLElement {
+  __cleanup?: () => void
+}
+
 interface ListState {
   q: string
   category: string
@@ -160,8 +164,11 @@ export async function renderList(root: HTMLElement) {
     listEl.innerHTML = ''
     emptyEl.hidden = sorted.length > 0
     countEl.textContent = `共 ${sorted.length} 篇`
-    if (state.view === 'table') listEl.append(articleTable(sorted, () => reload()))
-    else for (const a of sorted) listEl.append(articleCard(a))
+    if (state.view === 'table') {
+      const wrap = articleTable(sorted, () => reload())
+      listEl.append(wrap)
+      fitTableColumns(wrap)
+    } else for (const a of sorted) listEl.append(articleCard(a))
   }
 
   async function loadMeta() {
@@ -180,6 +187,21 @@ export async function renderList(root: HTMLElement) {
   }
 
   await Promise.all([loadMeta(), reload()])
+
+  // 窗口尺寸变化后重新按内容分配列宽
+  let fitRaf = 0
+  const onWindowResize = () => {
+    cancelAnimationFrame(fitRaf)
+    fitRaf = requestAnimationFrame(() => {
+      const wrap = root.querySelector('.table-wrap') as HTMLElement | null
+      if (wrap) fitTableColumns(wrap)
+    })
+  }
+  window.addEventListener('resize', onWindowResize)
+  ;(root as AppRoot).__cleanup = () => {
+    window.removeEventListener('resize', onWindowResize)
+    cancelAnimationFrame(fitRaf)
+  }
 }
 
 // ---------------- 排序 ----------------
@@ -254,25 +276,84 @@ function articleCard(a: ArticleSummary) {
 
 // ---------------- 表格视图 ----------------
 
+// 列定义：min/max 为列宽自适应时的下限与上限（px），列宽由 fitTableColumns 按内容分配
+const TABLE_COLUMNS: { key: string; label: string; min: number; max: number }[] = [
+  { key: 'title', label: '标题', min: 200, max: 520 },
+  { key: 'category', label: '分类', min: 88, max: 160 },
+  { key: 'status', label: '状态', min: 104, max: 132 },
+  { key: 'langs', label: '语言', min: 106, max: 150 },
+  { key: 'date', label: '日期', min: 96, max: 124 },
+  { key: 'path', label: '路径', min: 150, max: 340 },
+  { key: 'actions', label: '操作', min: 110, max: 118 },
+]
+
 function articleTable(articles: ArticleSummary[], onChanged: () => void) {
   const tbody = el('tbody')
   for (const a of articles) tbody.append(articleRow(a, onChanged))
-  return el('div', { class: 'table-wrap' }, [
-    el('table', { class: 'article-table' }, [
-      el('thead', {}, [
-        el('tr', {}, [
-          el('th', {}, ['标题']),
-          el('th', {}, ['分类']),
-          el('th', {}, ['状态']),
-          el('th', {}, ['语言']),
-          el('th', {}, ['日期']),
-          el('th', {}, ['路径']),
-          el('th', { class: 'actions' }, ['操作']),
-        ]),
-      ]),
-      tbody,
+  const table = el('table', { class: 'article-table' }, [
+    el('colgroup', {}, TABLE_COLUMNS.map((c) => el('col', { class: `col-${c.key}` }))),
+    el('thead', {}, [
+      el('tr', {}, TABLE_COLUMNS.map((c) =>
+        c.key === 'actions'
+          ? el('th', { class: 'actions' }, [c.label])
+          : el('th', {}, [c.label]),
+      )),
     ]),
+    tbody,
   ])
+  return el('div', { class: 'table-wrap' }, [table])
+}
+
+// 列宽自适应：先量出每列内容的自然宽度，再在容器宽度内分配，
+// 使表格既贴合内容（不浪费空间）又铺满整行；可伸缩列主要是标题与路径。
+function fitTableColumns(wrap: HTMLElement) {
+  const table = wrap.querySelector<HTMLTableElement>('table.article-table')
+  if (!table) return
+  const cols = Array.from(table.querySelectorAll<HTMLTableColElement>('colgroup > col'))
+  const heads = Array.from(table.querySelectorAll<HTMLElement>('thead > tr > th'))
+  if (cols.length !== TABLE_COLUMNS.length || heads.length !== TABLE_COLUMNS.length) return
+
+  // 临时取消宽度约束，让浏览器按内容（不换行）排一次，量出各列自然宽度
+  table.style.tableLayout = 'auto'
+  table.style.width = 'max-content'
+  for (const col of cols) col.style.width = ''
+  const measured = heads.map((th) => th.getBoundingClientRect().width)
+  // 拿不到布局信息时（如非浏览器环境）恢复浏览器默认的自动布局
+  if (!measured.some((w) => w > 0)) {
+    table.style.tableLayout = ''
+    table.style.width = ''
+    table.style.minWidth = ''
+    return
+  }
+  const natural = measured.map((w, i) =>
+    Math.min(Math.max(w, TABLE_COLUMNS[i].min), TABLE_COLUMNS[i].max),
+  )
+
+  const mins = TABLE_COLUMNS.map((c) => c.min)
+  const totalMin = mins.reduce((a, b) => a + b, 0)
+  const totalNatural = natural.reduce((a, b) => a + b, 0)
+  // 容器比最小列宽之和还窄时，表格保持最小宽度，由 .table-wrap 横向滚动
+  const available = Math.max(wrap.clientWidth || totalNatural, totalMin)
+
+  let widths: number[]
+  if (totalNatural <= available) {
+    // 内容比容器窄：按内容比例摊掉多余空间，铺满整行
+    const extra = available - totalNatural
+    widths = natural.map((w) => w + (extra * w) / totalNatural)
+  } else {
+    // 需要收缩：各列先保底最小宽度，余下空间按“可压缩量”比例分配
+    const slack = natural.map((w, i) => Math.max(0, w - mins[i]))
+    const totalSlack = slack.reduce((a, b) => a + b, 0)
+    const budget = available - totalMin
+    widths = natural.map((_, i) => mins[i] + (totalSlack > 0 ? (budget * slack[i]) / totalSlack : 0))
+  }
+
+  table.style.minWidth = `${totalMin}px`
+  table.style.tableLayout = 'fixed'
+  table.style.width = '100%'
+  cols.forEach((col, i) => {
+    col.style.width = `${(widths[i] / available) * 100}%`
+  })
 }
 
 function articleRow(a: ArticleSummary, onChanged: () => void) {

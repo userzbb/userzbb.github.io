@@ -1,5 +1,5 @@
 import rss from "@astrojs/rss";
-import { getBlogEntrySort } from "../utils/content-utils"
+import { getBlogEntrySort } from "../utils/contentUtils"
 import { siteConfig, profileConfig } from '../config';
 import type { APIContext } from "astro";
 

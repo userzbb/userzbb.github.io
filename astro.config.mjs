@@ -21,14 +21,14 @@ import { remarkLqip } from './src/plugins/remark-lqip.js';
 
 import svelte from "@astrojs/svelte";
 
-import { siteConfig } from './src/config';
+import { siteConfig, i18nConfig } from './src/config';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://momo.motues.top', // Root URL of site
+  site: siteConfig.rootSiteUrl || 'https://momo.motues.top', // Root URL of site
   i18n: {
-    locales: ['zh-cn', 'en'],
-    defaultLocale: 'zh-cn',
+    locales: i18nConfig.supportedLanguages,
+    defaultLocale: i18nConfig.defaultLanguage,
     routing: {
       prefixDefaultLocale: false,
       redirectToDefaultLocale: false
@@ -41,7 +41,7 @@ export default defineConfig({
       "simple-icons": ["*"],
       "vscode-icons": ["*"],
       "material-symbols": ["*"],
-      "flue": ["*"],
+      "fluent": ["*"],
     }
   }), svelte()],
   markdown: {

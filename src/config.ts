@@ -1,14 +1,15 @@
 import type {
     SiteConfig,
     ProfileConfig,
-    LicenseConfig
+    LicenseConfig,
 } from "./types/config"
-
 import type { FriendLink } from "./types/friend"
+import type { I18nConfig } from "./types/i18n"
 
 export const siteConfig: SiteConfig = {
-    title: "Momo",
-    subTitle: "Blog",
+    title: "Momo", // Title of the site, used in the tab in the browser and in SEO
+    subTitle: "Blog", // Subtitle of the site
+    rootSiteUrl: "https://momo.motues.top", // Root URL of the site, used for generating absolute URLs for SEO and social sharing
 
     favicon: "/favicon/favicon.ico", // Path of the favicon, relative to the /public directory
 
@@ -37,24 +38,63 @@ export const siteConfig: SiteConfig = {
 
 export const profileConfig: ProfileConfig = {
     avatar: "assets/Motues.jpg", // Relative to the /src directory. Relative to the /public directory if it starts with '/'
-    name: "Motues",
-    description: "Life is colorful!",
-    indexPage: "https://www.motues.top",
-    startYear: 2024,
+    name: "Motues", // Used in the footer of the blog
+    description: "Life is colorful!", // Used in SEO
+    indexPage: "https://www.motues.top", // The homepage, used in footer and SEO
+    startYear: 2024, // The year the site was created, used in the footer
 }
 
 export const licenseConfig: LicenseConfig = {
-	enable: true,
-	name: "CC BY-NC-SA 4.0",
-	url: "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+	enable: true, // Whether to enable license information
+	name: "CC BY-NC-SA 4.0", // License name
+	url: "https://creativecommons.org/licenses/by-nc-sa/4.0/", // License URL
+};
+
+export const i18nConfig: I18nConfig = {
+    defaultLanguage: "zh-cn", // Default language of the site
+    supportedLanguages: ["zh-cn", "en"], // List of supported languages
+    translations: { // Translation content for each supported language
+        "zh-cn": {
+            Cover: {
+                title: {
+                    home: "欢迎来到 Momo 的博客",
+                    archive: "文章归档",
+                    about: "关于",
+                    friends: "友链",
+                },
+                subTitle: {
+                    home: "生活多彩！",
+                    archive: "共 {count} 篇文章", // {count} will be replaced with the total number of articles
+                    about: "一个极简的Blog模板",
+                    friends: "有趣的灵魂",
+                }
+            }
+        },
+        "en": {
+            Cover: {
+                title: {
+                    home: "Welcome to Momo's Blog",
+                    archive: "Archive",
+                    about: "About",
+                    friends: "Friends",
+                },
+                subTitle: {
+                    home: "Life is colorful!",
+                    archive: "Total of {count} articles",
+                    about: "A minimalist blog template",
+                    friends: "Interesting Souls",
+                }
+            }
+        }
+    }
 };
 
 export const friendLinkConfig: FriendLink[] = [
     {
-        name: 'Motues',
-        avatar: 'https://www.motues.top/avatar.jpg',
-        url: 'https://www.motues.top',
-        description: 'Like River!'
+        name: 'Motues', // Name of the friend link
+        avatar: 'https://www.motues.top/avatar.jpg', // Avatar image of the friend link
+        url: 'https://www.motues.top', // URL of the friend link
+        description: 'Like River!' // Description of the friend link, set to an empty string if not needed
     },
     {
         name: 'Astro',

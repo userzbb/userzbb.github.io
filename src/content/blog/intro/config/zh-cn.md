@@ -8,25 +8,33 @@ draft: false
 slugId: momo/intro/config
 ---
 
-## 网站信息配置
+## 配置文件一览
 
-网站的配置文件主要为`astro.config.mjs`和`src/config.ts`
+| 文件 | 作用 |
+| --- | --- |
+| `src/config.ts` | **主要配置入口**：站点信息、主题开关、个人资料、License、友链、多语言与各页面的 Cover 文案 |
+| `astro.config.mjs` | Astro 配置：其中 `site`、`i18n` 会自动读取 `src/config.ts`，通常只需要改 `markdown.shikiConfig` 等构建期选项 |
+| `src/content.config.ts` | 文章 frontmatter 的 schema（只有在新增/修改字段时才需要改动） |
+| `src/i18n/` | 界面文案翻译（除 Cover 之外的部分） |
 
-### `astro.config.mjs`
+## `astro.config.mjs`
 
-* `site`: 网站的URL
-* `i18n`: 国际化配置
-    * `locale`: 支持的语言
-    * `defaultLocale`: 默认语言
+* `site`: 网站的 URL，取自 `siteConfig.rootSiteUrl`
+* `i18n`: 国际化配置，取自 `i18nConfig`
+    * `locales`: 支持的语言，对应 `i18nConfig.supportedLanguages`
+    * `defaultLocale`: 默认语言，对应 `i18nConfig.defaultLanguage`
 * `markdown`
     * `shikiConfig`: 代码块的样式，可以参考Astro的文档[Shiki](https://docs.astro.build/en/guides/syntax-highlighting/#setting-a-default-shiki-theme)
 
-### `src/config.ts`
+> 也就是说语言与域名相关的内容都在 `src/config.ts` 中配置，`astro.config.mjs` 一般不需要改动。
 
-#### `siteConfig`
+## `src/config.ts`
+
+### `siteConfig`
 
 * `title`: 网站的标题
 * `subTitle`: 网站的副标题
+* `rootSiteUrl`: 网站的根地址，用于生成 SEO 与社交分享的绝对链接；`astro.config.mjs` 的 `site` 默认取该值
 * `favicon`: 网站的图标
 * `pageSize`: 每页显示的文章数量
 * `toc`
@@ -36,12 +44,12 @@ slugId: momo/intro/config
     * `enable`: 是否启用博客底部的页面导航 
 * `comments`
     * `enable`: 是否启用评论功能
-    * `platform`: 评论平台
+    * `platform`: 评论平台，`default` 使用 Momo-backend，也支持 `twikoo`
     * `backendUrl`： 后端的地址
 * `theme`
     * `AOS`: 是否启用AOS动画
     * `LQIP`: 是否启用LQIP
-    * `PohotSwipe`: 是否启用图片灯箱模式
+    * `PhotoSwipe`: 是否启用图片灯箱模式
     * `postCard`
         * `imageMode`: 首页文章卡片封面图的展示模式
             * `"top"`: 图片单独显示在卡片内容顶部（默认）
@@ -51,28 +59,42 @@ slugId: momo/intro/config
 后端项目参考[Momo-backend](https://github.com/Motues/Momo-Backend)进行部署，一定需要按照要求进行配置，尤其是跨域的域名认证
 :::
 
-#### `profileConfig`
+### `profileConfig`
 
-* `avatar`: 头像
-* `name`: 名字
-* `description`: 描述
-* `indexpage`: 个人页面首页
+* `avatar`: 头像，相对 `src/` 目录；以 `/` 开头时相对 `public/` 目录
+* `name`: 名字，展示在页脚
+* `description`: 描述，用于 SEO
+* `indexPage`: 个人页面首页，展示在页脚
+* `startYear`: 建站年份，用于页脚的版权年份区间
 
-#### `licenseConfig`
+### `licenseConfig`
 
 * `enable`: 是否启用License，展示在文章的最后
 * `name`: License名称
 * `url`: License的URL
 
-#### `friendLinkConfig`
+### `friendLinkConfig`
 
 * `name`: 友链名称
 * `avatar`: 友链图标
 * `url`: 友链URL
-* `description`: 友链描述
+* `description`: 友链描述，不需要时填空字符串
+
+### `i18nConfig`
+
+* `defaultLanguage`: 默认语言，同时作为 `astro.config.mjs` 的 `defaultLocale`（默认语言不会出现在 URL 前缀中）
+* `supportedLanguages`: 支持的语言列表，同时作为 `astro.config.mjs` 的 `locales`
+* `translations`: 各语言的 **Cover 文案**
+    * `translations["zh-cn"].Cover` / `translations["en"].Cover`
+    * `Cover.title`: 各页面的大标题，包含 `home`、`archive`、`about`、`friends`
+    * `Cover.subTitle`: 各页面的副标题，字段同上；其中 `archive` 支持 `{count}` 占位符，会自动替换为文章总数
 
 ## 国际化配置
 
-国际化配置文件位于 `src/i18n/` 文件夹中
+国际化相关文件位于 `src/i18n/` 文件夹中：
 
-如果需要修改首页或者其他页面的Cover内容，可以在 `src/i18n/language` 文件夹下对应的文件夹修改；只需要修改对应的`cover.title`和`cover.subtitle`字段即可
+* `key.ts`：`Translation` 接口，是翻译结构的唯一来源
+* `language/zh-cn.ts`、`language/en.ts`：各语言的界面文案，字段必须与 `Translation` 一一对应
+* `translation.ts`：`i18nit(lang)` 返回 `t(key, params)` 翻译函数，支持 `{name}` 形式的参数替换，缺失时回退默认语言
+
+各个页面的 Cover 文案（`cover.title` / `cover.subTitle`）已经移动到 `src/config.ts` 的 `i18nConfig.translations` 中，`src/i18n/language` 下的文件会直接引用它；因此修改首页、归档、关于、友链页的大标题和副标题时，请改 `src/config.ts`，不需要再改语言文件。

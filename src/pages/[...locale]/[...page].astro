@@ -5,12 +5,12 @@ import PostPage from '@components/PostPage.astro';
 import Navi from '@components/control/Navi.astro';
 import FabMenu from '@components/control/FabMenu.astro';
 
-import { getBlogEntrySort } from '@utils/content-utils'
+import { getBlogEntrySort } from '@utils/contentUtils'
 import { siteConfig } from '@/config';
 import { i18n } from "astro:config/client";
 import type { CollectionEntry } from 'astro:content';
 import type { GetStaticPaths } from 'astro';
-import { getRelativeLocaleUrl } from '@utils/url-utils';
+import { getRelativeLocaleUrl } from '@utils/urlUtils';
 
 import i18nit from '@i18n/translation'
 
