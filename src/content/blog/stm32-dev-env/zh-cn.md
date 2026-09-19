@@ -19,6 +19,7 @@ category: Hardware
 | 主机编译 | gcc / g++ / clang / make / cmake / ninja / gdb |
 | 交叉编译 | arm-none-eabi 工具链 |
 | 烧录调试 | ST-Link / J-Link / OpenOCD |
+| **权限配置** | **udev 规则（所有 USB 设备都要用）** |
 | Rust 嵌入式 | rustup / probe-rs / espup |
 | RTOS | Zephyr（含 SDK 安装） |
 | 一体化平台 | PlatformIO |
@@ -244,11 +245,247 @@ st-info --probe
 
 `dev-type: STM32F1xx_MD` 直接告诉你这是 STM32F1 系列中容量芯片，Flash 64KB / RAM 20KB。
 
-**udev 权限**：J-Link 的 RPM 包会自动装 `/etc/udev/rules.d/99-jlink.rules`，普通用户即可访问探针，不需要 sudo。
+**udev 权限**：J-Link 的 RPM 包会自动装 `/etc/udev/rules.d/99-jlink.rules`，普通用户即可访问探针，不需要 sudo。详见下一节。
 
 ---
 
-## 四、Rust 嵌入式开发
+## 四、udev 权限配置（通用基础）
+
+### 说明
+
+**udev 是什么**：Linux 的设备管理器，负责在设备插入 USB 时创建 `/dev/` 下的设备节点并设置权限。
+
+**为什么嵌入式开发必须配它**：调试探针（ST-Link、J-Link）、USB 转串口、逻辑分析仪都是 USB 设备。**默认情况下普通用户没有读写权限**，只能 `sudo` 访问——但 `sudo gdb`、`sudo st-flash` 很难用，而且图形化 IDE 根本不会用 sudo。
+
+**症状**：插了探针，工具却说找不到。
+
+```bash
+st-info --probe
+# Couldn't find any ST-Link devices
+
+probe-rs list
+# No debug probes were found.
+# WARN: If your probe is plugged in but not listed, it is most likely a permissions problem.
+```
+
+设备其实在那儿（`lsusb` 能看到），只是没权限打开。
+
+### udev 规则的结构
+
+规则文件放在 `/etc/udev/rules.d/`，每行一条规则。看一条实际的：
+
+```
+ATTRS{idVendor}=="0483", ATTRS{idProduct}=="3748", MODE="660", GROUP="plugdev", TAG+="uaccess"
+```
+
+拆解：
+
+| 字段 | 含义 |
+| --- | --- |
+| `ATTRS{idVendor}=="0483"` | 匹配厂商 ID（`0483` = STMicroelectronics） |
+| `ATTRS{idProduct}=="3748"` | 匹配产品 ID（`3748` = ST-Link/V2） |
+| `MODE="660"` | 权限：owner 读写、group 读写、其他无 |
+| `GROUP="plugdev"` | 属组 |
+| `TAG+="uaccess"` | **关键**：让当前登录用户自动获得访问权（systemd-logind 机制） |
+
+另一份规则用的是不同策略：
+
+```
+ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea[67][013]", MODE:="0666", ...
+```
+
+`MODE:="0666"` 是**所有用户可读写**（注意 `:=` 是强制赋值，会覆盖之前的值）。更宽松，但不够精细。
+
+> **两种策略的取舍**：`TAG+="uaccess"` 更安全（只有登录用户能用），`MODE:="0666"` 更省事（任何用户都能用，包括 root 跑的服务）。
+
+### 查设备 ID
+
+想知道你的设备该配什么规则，先查它的 Vendor/Product ID：
+
+```bash
+lsusb
+# Bus 001 Device 014: ID 0483:3748 STMicroelectronics ST-LINK/V2
+#                     └──┬──┘ └─┬──┘
+#                     idVendor  idProduct
+```
+
+常用的几个：
+
+| 设备 | Vendor | Product |
+| --- | --- | --- |
+| ST-Link/V2 | `0483` | `3748` |
+| ST-Link/V2-1 | `0483` | `374b` |
+| ST-Link/V3 | `0483` | `3754` |
+| J-Link | `1366` | `0101` / `0105` |
+| CH340 (USB转串口) | `1a86` | `7523` |
+| CP2102 (USB转串口) | `10c4` | `ea60` |
+| FTDI | `0403` | `6001` / `6015` |
+
+也可以直接看内核日志：
+
+```bash
+dmesg | grep -iE "usb|tty" | tail -20
+```
+
+### 三份规则的关系
+
+我装了三个工具链，各自带一份 udev 规则，它们**覆盖不同设备、可以共存**：
+
+| 规则文件 | 来源 | 行数 | 覆盖设备数 | 特点 |
+| --- | --- | --- | --- | --- |
+| `99-jlink.rules` | J-Link RPM 包自动安装 | 374 | 12 | J-Link 全系，含注释文档 |
+| `69-probe-rs.rules` | 手动下载（probe.rs） | 156 | **111** | **覆盖最广**，几乎包含所有主流探针 |
+| `99-platformio-udev.rules` | 手动下载（PlatformIO） | 187 | 55 | 偏向串口和开发板 |
+
+**关键点**：`69-probe-rs.rules` 覆盖了 111 个设备，**包括 ST-Link 和 J-Link**。所以即使你不用 probe-rs，装它也能一次性解决大部分探针的权限问题。
+
+数字前缀（`69` / `99`）是**加载顺序**，数字小的先加载。如果多条规则匹配同一设备，后面的会覆盖前面的。
+
+### 安装
+
+**J-Link**：装 RPM 包时自动完成，不用手动操作。
+
+**probe-rs**（推荐，覆盖最广）：
+
+```bash
+curl -o /tmp/69-probe-rs.rules https://probe.rs/files/69-probe-rs.rules
+sudo cp /tmp/69-probe-rs.rules /etc/udev/rules.d/
+
+# 重新加载规则
+sudo udevadm control --reload
+sudo udevadm trigger
+```
+
+**PlatformIO**：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/platformio/platformio-core/develop/platformio/assets/system/99-platformio-udev.rules \
+  | sudo tee /etc/udev/rules.d/99-platformio-udev.rules
+
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+```
+
+**OpenOCD**（Zephyr SDK 自带一份）：
+
+```bash
+sudo cp ~/zephyr-sdk-1.0.1/sysroots/x86_64-pokysdk-linux/usr/share/openocd/contrib/60-openocd.rules \
+  /etc/udev/rules.d/
+sudo udevadm control --reload && sudo udevadm trigger
+```
+
+**手写一条**（如果你的设备不在任何规则里）：
+
+```bash
+sudo tee /etc/udev/rules.d/99-my-device.rules <<'EOF'
+# 把 0483:3748 换成你设备的 ID
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="3748", MODE="0666"
+EOF
+
+sudo udevadm control --reload && sudo udevadm trigger
+```
+
+### 验证
+
+**第 1 层：规则文件已就位**
+
+```bash
+ls /etc/udev/rules.d/ | grep -iE "jlink|probe|platformio|openocd"
+# 69-probe-rs.rules
+# 99-jlink.rules
+# 99-platformio-udev.rules
+```
+
+**第 2 层：规则语法正确**
+
+```bash
+sudo udevadm control --reload
+# 无输出 = 语法正常；有报错会明确指出哪一行
+```
+
+**第 3 层：设备权限正确** ⭐
+
+插上探针后，查它的实际权限：
+
+```bash
+# 找到设备节点
+lsusb | grep -i stlink
+# Bus 001 Device 014: ID 0483:3748 STMicroelectronics ST-LINK/V2
+
+# 查权限（busnum:devnum 对应上面那个 001:014）
+ls -l /dev/bus/usb/001/014
+# crw-rw-rw- 1 root root ... → 0666，所有用户可访问 ✅
+# crw-rw-r-- 1 root root ... → 只有 root 能写 ❌
+```
+
+**第 4 层：工具能真正访问**
+
+```bash
+st-info --probe
+# Found 1 stlink programmers
+#   dev-type: STM32F1xx_MD          ← 能读到芯片信息，说明权限没问题
+```
+
+### 备选方案：dialout 组
+
+除了 udev 规则，另一种做法是把用户加进 `dialout` 组（串口设备的传统属组）：
+
+```bash
+sudo usermod -a -G dialout $USER
+```
+
+**但这里有个大坑**（我踩过）：
+
+```bash
+sudo usermod -a -G dialout $USER
+groups
+# zizimiku wheel kvm docker        ← 看不到 dialout！
+```
+
+**这是正常现象。** `usermod` 修改的是账户的组归属（写入 `/etc/group`），但**当前已登录的会话不会自动刷新**。`source ~/.zshrc` **也没用**——组权限是**登录会话级别**的，由登录时创建进程时确定。
+
+必须**完全退出终端并重新登录**（注销或重启）：
+
+```bash
+# 重新登录后
+groups
+# zizimiku wheel dialout kvm docker   ← 这才对
+```
+
+或者临时在当前 shell 生效：
+
+```bash
+newgrp dialout      # 只对当前终端有效
+```
+
+**udev 规则 vs dialout 组**：
+
+| | udev 规则 | dialout 组 |
+| --- | --- | --- |
+| 粒度 | 精确到具体设备型号 | 所有串口设备 |
+| 生效 | 插拔即生效 | 需重新登录 |
+| 安全性 | 更好 | 较宽松 |
+| 推荐度 | ⭐ 首选 | 补充手段 |
+
+**结论**：优先用 udev 规则。`dialout` 只作为补充（某些老工具只认组权限）。
+
+### 排查清单
+
+如果配了规则还是不工作：
+
+1. **重新插拔设备** — udev 规则只对**新插入**的设备生效，已插入的要拔了重插（或 `sudo udevadm trigger`）
+2. **确认规则真的被加载** — `sudo udevadm test /dev/bus/usb/001/014` 2>&1 | grep -i mode
+3. **检查 brltty 抢占** — Fedora 上 `brltty` 服务会抢占某些 USB 串口设备，导致 `/dev/ttyUSB*` 不出现：
+   ```bash
+   sudo systemctl stop brltty-udev.service
+   sudo systemctl mask brltty-udev.service
+   ```
+4. **看内核是否识别** — `sudo dmesg | tail -20`，如果内核日志里都没有设备，那是硬件/线缆问题，不是权限问题
+5. **确认不是被别的进程占用** — Keil、STM32CubeProgrammer 等会独占探针
+
+---
+
+## 五、Rust 嵌入式开发
 
 ### 说明
 
@@ -379,7 +616,7 @@ espup --version   # espup 0.17.1
 
 ---
 
-## 五、Zephyr RTOS
+## 六、Zephyr RTOS
 
 ### 说明
 
@@ -602,7 +839,7 @@ west flash
 
 ---
 
-## 六、PlatformIO
+## 七、PlatformIO
 
 ### 说明
 
@@ -713,7 +950,7 @@ pio device monitor
 
 ---
 
-## 七、STM32CubeMX
+## 八、STM32CubeMX
 
 ### 说明
 
@@ -756,7 +993,7 @@ ls ~/STM32CubeMX/
 
 ---
 
-## 八、AI 辅助工具配置
+## 九、AI 辅助工具配置
 
 ### 说明
 
@@ -998,7 +1235,7 @@ npx skills check           # 只检查不更新
 
 ---
 
-## 九、实战：Keil 工程迁移到 GCC
+## 十、实战：Keil 工程迁移到 GCC
 
 前面都是环境配置，这一节是真正的技术活。
 
@@ -1186,7 +1423,7 @@ make -j$(nproc)
 
 ---
 
-## 十、最大的坑：`.thumb_func`
+## 十一、最大的坑：`.thumb_func`
 
 ### 症状：烧录成功，但板子毫无反应
 
@@ -1271,7 +1508,7 @@ xxd -e -g4 build/STM32_test.bin | head -1
 
 ---
 
-## 十一、最终环境总览
+## 十二、最终环境总览
 
 所有工具链的实测验证结果：
 
@@ -1320,7 +1557,7 @@ pio run -t upload && pio device monitor
 
 ---
 
-## 十二、踩坑清单
+## 十三、踩坑清单
 
 按"值得记住"排序：
 
@@ -1334,11 +1571,15 @@ pio run -t upload && pio device monitor
 
 5. **Zephyr SDK 文件名必须带 `_gnu`** — 少这个后缀就是 404。下载后必须校验大小（约 2GB）。
 
-6. **改用户组后必须重新登录** — `source ~/.zshrc` 不起作用，组权限是登录会话级别的。
+6. **改用户组后必须重新登录** — `source ~/.zshrc` 不起作用，组权限是登录会话级别的。udev 规则没这个问题，优先用 udev。
 
-7. **Zephyr 的安装顺序** — 先 `west packages pip --install` 再 `west zephyr-export`，顺序反了会报 `jsonschema` 缺失，而且错误信息会被 west 自身的 bug 掩盖。
+7. **udev 规则只对新插入的设备生效** — 已插着的设备要拔了重插，或者 `sudo udevadm trigger`。
 
-8. **GitHub Copilot 插件需要订阅** — 普通 PAT 对 `api.githubcopilot.com` 无效。
+8. **Zephyr 的安装顺序** — 先 `west packages pip --install` 再 `west zephyr-export`，顺序反了会报 `jsonschema` 缺失，而且错误信息会被 west 自身的 bug 掩盖。
+
+9. **GitHub Copilot 插件需要订阅** — 普通 PAT 对 `api.githubcopilot.com` 无效。
+
+10. **PlatformIO 的 PATH 取决于安装方式** — `dnf` 装在 `/usr/bin`（不需要配 PATH），官方脚本装在 `~/.platformio/penv/bin`（需要配）。照抄教程容易多配一行无效的。
 
 ---
 
