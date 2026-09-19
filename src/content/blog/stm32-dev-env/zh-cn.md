@@ -52,7 +52,9 @@ category: Hardware
 
 Fedora 41 之后 DNF5 成为默认包管理器，**软件包组的名称从"显示名"改成了"组 ID"**——这是第一个坑：
 
-```bash
+下面代码块里的删除线表示我最初尝试过但会失败的命令，绿色增补行是最终可用的写法；终端标题也标明了这段命令对应的文件或验证步骤。
+
+```bash title="Fedora 44 · host toolchain" frame="terminal" ins="6-7" del="1-4"
 # ❌ 旧语法，Fedora 44 上会失败
 sudo dnf group install "Development Tools"
 # Failed to resolve the transaction:
@@ -64,7 +66,7 @@ sudo dnf install @development-tools
 
 单独安装其余的（这些**不在** development-tools 组里）：
 
-```bash
+```bash title="Fedora 44 · extra packages" frame="terminal"
 sudo dnf install gcc gcc-c++ clang make cmake ninja-build gdb
 ```
 
@@ -74,7 +76,7 @@ sudo dnf install gcc gcc-c++ clang make cmake ninja-build gdb
 
 先看版本：
 
-```bash
+```bash title="toolchain versions" frame="terminal"
 gcc --version      # gcc (GCC) 16.2.1
 g++ --version      # g++ (GCC) 16.2.1
 clang --version    # clang version 22.1.8
@@ -86,7 +88,7 @@ gdb --version      # GNU gdb 17.2
 
 再实际编译运行一个程序——**这才是真的验证**：
 
-```bash
+```bash title="/tmp/t.c" frame="terminal"
 cd /tmp && cat > t.c <<'EOF'
 #include <stdio.h>
 int main(){ printf("hello\n"); return 0; }
@@ -108,7 +110,7 @@ gcc t.c -o t && ./t
 
 命名规则是 `架构-厂商-系统-ABI`：
 
-```
+```text title="toolchain tuple" frame="code"
 arm - none - eabi
  │     │      │
  │     │      └─ EABI：嵌入式应用二进制接口
@@ -128,7 +130,7 @@ arm - none - eabi
 
 ### 安装
 
-```bash
+```bash title="ARM GNU toolchain" frame="terminal"
 sudo dnf install arm-none-eabi-gcc-cs arm-none-eabi-gcc-cs-c++ \
                  arm-none-eabi-binutils arm-none-eabi-newlib
 ```
@@ -144,7 +146,7 @@ arm-none-eabi-gcc --version
 
 实际编译一个 Cortex-M3 目标文件：
 
-```bash
+```bash title="Cortex-M3 compile check" frame="terminal"
 cat > arm.c <<'EOF'
 int main(void){ volatile int i=0; while(1){ i++; } return 0; }
 EOF
@@ -232,7 +234,7 @@ picocom --version     # picocom v2024-07
 
 **硬件探测**（插上探针后）——这是最有价值的验证，因为能**自动识别芯片型号**：
 
-```bash
+```bash title="probe permissions" frame="terminal"
 st-info --probe
 # Found 1 stlink programmers
 #   version:    V2J29S7
@@ -274,7 +276,7 @@ probe-rs list
 
 规则文件放在 `/etc/udev/rules.d/`，每行一条规则。看一条实际的：
 
-```
+```text title="99-stlink.rules" frame="code"
 ATTRS{idVendor}=="0483", ATTRS{idProduct}=="3748", MODE="660", GROUP="plugdev", TAG+="uaccess"
 ```
 
@@ -290,7 +292,7 @@ ATTRS{idVendor}=="0483", ATTRS{idProduct}=="3748", MODE="660", GROUP="plugdev", 
 
 另一份规则用的是不同策略：
 
-```
+```text title="serial adapter rule" frame="code"
 ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea[67][013]", MODE:="0666", ...
 ```
 
@@ -302,7 +304,7 @@ ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea[67][013]", MODE:="0666", ...
 
 想知道你的设备该配什么规则，先查它的 Vendor/Product ID：
 
-```bash
+```bash title="identify the probe" frame="terminal"
 lsusb
 # Bus 001 Device 014: ID 0483:3748 STMicroelectronics ST-LINK/V2
 #                     └──┬──┘ └─┬──┘
@@ -323,7 +325,7 @@ lsusb
 
 也可以直接看内核日志：
 
-```bash
+```bash title="kernel USB log" frame="terminal"
 dmesg | grep -iE "usb|tty" | tail -20
 ```
 
@@ -1155,7 +1157,7 @@ npx skills add leokemp223/embed-ai-tool -y
 
 每个 skill 是一个目录，典型结构：
 
-```
+```text title=".agents/skills/flash-jlink/" frame="code" collapse="2-8"
 .agents/skills/flash-jlink/
 ├── SKILL.md                 ← 主文件：告诉 AI 这个技能做什么、怎么用
 ├── scripts/
@@ -1168,7 +1170,7 @@ npx skills add leokemp223/embed-ai-tool -y
 
 `SKILL.md` 的格式是带 frontmatter 的 Markdown：
 
-```markdown
+```markdown title=".agents/skills/flash-jlink/SKILL.md" frame="code"
 ---
 name: flash-jlink
 description: 当需要使用 SEGGER J-Link 探针烧录固件，或启动 RTT 日志捕获时使用。
@@ -1195,7 +1197,7 @@ description: 当需要使用 SEGGER J-Link 探针烧录固件，或启动 RTT �
 
 `workflow` 能把你手动敲的一串命令变成一句话：
 
-```bash
+```bash title="manual vs workflow" frame="terminal"
 # 手动流程
 make -j$(nproc)
 st-flash --reset write build/firmware.bin 0x08000000
@@ -1209,7 +1211,7 @@ picocom -b 115200 /dev/ttyUSB0
 
 #### 验证
 
-```bash
+```bash title="skills verification" frame="terminal"
 # 确认 24 个都在
 ls .agents/skills/ | wc -l
 # 24
@@ -1226,7 +1228,7 @@ cat skills-lock.json | head -5
 
 #### 更新
 
-```bash
+```bash title="skills update" frame="terminal"
 npx skills update          # 更新全部
 npx skills check           # 只检查不更新
 ```
@@ -1259,7 +1261,7 @@ npx skills check           # 只检查不更新
 
 Keil 的启动文件：
 
-```asm
+```asm title="startup_stm32f10x_md.s · Keil ARMASM" frame="code"
 Stack_Size      EQU     0x00000400
                 AREA    STACK, NOINIT, READWRITE, ALIGN=3
 ```
@@ -1270,7 +1272,7 @@ GCC 完全不认识 `EQU` 和 `AREA`。所以必须**重写启动文件**，并�
 
 好在 `.uvprojx` 是 XML 格式，配置都能抠出来：
 
-```bash
+```bash title="Project.uvprojx" frame="terminal"
 grep -oE "<Define>[^<]*</Define>" Project.uvprojx
 # <Define>USE_STDPERIPH_DRIVER</Define>
 
@@ -1291,7 +1293,7 @@ grep -oE "<FileName>[^<]*\.s</FileName>" Project.uvprojx
 
 STM32F103C8T6 有 64K Flash 和 20K RAM：
 
-```ld
+```ld title="gcc/stm32_flash.ld" frame="code" collapse="21-44"
 ENTRY(Reset_Handler)
 
 MEMORY
@@ -1343,7 +1345,7 @@ SECTIONS
 
 ### 手写 GNU 启动文件
 
-```asm
+```asm title="gcc/startup_stm32f10x.s" frame="code" collapse="16-29"
     .syntax unified
     .cpu cortex-m3
     .thumb
@@ -1388,7 +1390,7 @@ Reset_Handler:
 
 ### Makefile
 
-```makefile
+```makefile title="Makefile" frame="code"
 CPU   := -mcpu=cortex-m3 -mthumb
 DEFS  := -DSTM32F10X_MD -DUSE_STDPERIPH_DRIVER
 CFLAGS := $(CPU) $(DEFS) -IStart -ILibrary -IUser -ISystem \
@@ -1398,13 +1400,13 @@ LDFLAGS := $(CPU) -Tgcc/stm32_flash.ld --specs=nosys.specs -Wl,--gc-sections
 
 **编译过程中的小坑**：第一次编译报
 
-```
+```text title="linker error" frame="terminal"
 undefined reference to `Default_Handler'
 ```
 
 因为向量表引用了 `Default_Handler` 但没定义它。补上：
 
-```asm
+```asm title="startup_stm32f10x.s · Default_Handler" frame="code" ins="1-4"
     .weak Default_Handler
     .type Default_Handler, %function
 Default_Handler:
@@ -1413,7 +1415,7 @@ Default_Handler:
 
 修复后编译通过：
 
-```bash
+```bash title="build/firmware.elf" frame="terminal"
 make -j$(nproc)
 #    text    data     bss     dec     hex
 #    1304       0       0    1304     518
@@ -1427,7 +1429,7 @@ make -j$(nproc)
 
 ### 症状：烧录成功，但板子毫无反应
 
-```bash
+```bash title="flash STM32_test.bin" frame="terminal"
 st-flash --reset write build/STM32_test.bin 0x08000000
 # Flash written and verified! jolly good!
 ```
@@ -1436,7 +1438,7 @@ st-flash --reset write build/STM32_test.bin 0x08000000
 
 作为对照，把 Keil 原本编译的 `.axf` 转成二进制烧进去：
 
-```bash
+```bash title="compare Keil and GCC firmware" frame="terminal"
 arm-none-eabi-objcopy -O binary Objects/Project.axf build/Project_keil.bin
 st-flash --reset write build/Project_keil.bin 0x08000000
 ```
@@ -1445,7 +1447,7 @@ st-flash --reset write build/Project_keil.bin 0x08000000
 
 ### 排查：用十六进制对比向量表
 
-```bash
+```bash title="vector table diff" frame="terminal"
 xxd -e -g4 build/STM32_test.bin | head -1     # GCC 版
 xxd -e -g4 build/Project_keil.bin | head -1   # Keil 版
 ```
@@ -1472,7 +1474,7 @@ Cortex-M 内核**只能执行 Thumb 指令集**，不支持 ARM 指令集。向�
 
 Keil 的 ARMASM 会自动置位这个标志。而 **GNU 汇编器里，`.thumb` 伪指令只影响指令编码，不改变符号属性**：
 
-```asm
+```asm title="Reset_Handler · broken version" frame="code" del="3"
     .thumb              ; 告诉汇编器用 Thumb 指令编码
     .global Reset_Handler
     .thumb_func         ; 这个才给符号打上 Thumb 标记
@@ -1483,7 +1485,9 @@ Reset_Handler:
 
 ### 修复
 
-```asm
+这里用增补标记突出唯一需要补上的 `.thumb_func` 行；它改变的是符号属性，不是指令本身。
+
+```asm title="Reset_Handler · fix" frame="code" ins="2"
     .global Reset_Handler
     .thumb_func          ; 加上这一行
 Reset_Handler:
@@ -1491,7 +1495,7 @@ Reset_Handler:
 
 重新编译后检查向量表：
 
-```bash
+```bash title="verify Thumb bit" frame="terminal"
 xxd -e -g4 build/STM32_test.bin | head -1
 # 00000000: 20005000 080004c5
 
@@ -1537,21 +1541,21 @@ xxd -e -g4 build/STM32_test.bin | head -1
 
 裸机 + Makefile：
 
-```bash
+```bash title="bare-metal Makefile" frame="terminal"
 make -j$(nproc)
 make flash-stlink     # 或 make flash-jlink
 ```
 
 Zephyr：
 
-```bash
+```bash title="Zephyr west" frame="terminal"
 cd ~/zephyrproject && source .venv/bin/activate
 cd myprojects/myapp && west build -b <board> . && west flash
 ```
 
 PlatformIO：
 
-```bash
+```bash title="PlatformIO" frame="terminal"
 pio run -t upload && pio device monitor
 ```
 
