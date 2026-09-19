@@ -87,13 +87,12 @@ category: Hardware
 
 **为什么单独讲这个**：这套工具链对运行时版本有硬要求——KiCad 的 MCP 服务器要 Node ≥ 18，Freerouting 要 Java ≥ 21。而 Fedora 仓库里的版本往往偏旧或不够灵活，所以实际部署时通常靠**版本管理器**来装和切换。
 
-本机装了四个：
+本文用到三个：
 
 | 语言 | 管理器 | 官网 | 本机版本 | 本文用到吗 |
 | --- | --- | --- | --- | --- |
 | **Node.js** | nvm | [github.com/nvm-sh/nvm](https://github.com/nvm-sh/nvm) | v24.14.0 | ✅ 是（跑 MCP） |
 | **Java** | sdkman | [sdkman.io](https://sdkman.io/) | Temurin 25.0.2 | ✅ 是（跑 Freerouting） |
-| **Rust** | rustup | [rustup.rs](https://rustup.rs/) | 1.29.1 | ⚪ 否（上一篇用的） |
 | **Python** | uv | [astral.sh/uv](https://astral.sh/uv/) | 0.10.10 | ❌ **否**（见下） |
 
 **另外一个 Fedora 原生的**：`alternatives`（系统自带），用于在多个已安装版本间切换默认项。
@@ -124,9 +123,6 @@ sdk install java 25.0.2-tem
 # uv —— Python 版本与项目管理（Rust 写的，很快）
 curl -LsSf https://astral.sh/uv/install.sh | sh
 uv python install 3.14
-
-# rustup —— Rust 工具链
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
 **Fedora 原生方案**（不用版本管理器时）：
@@ -223,57 +219,6 @@ which node
 # /home/zizimiku/.nvm/versions/node/v24.14.0/bin/node
 ```
 
-#### rustup
-
-**安装**：
-
-```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-# 默认选项会装到 ~/.cargo 和 ~/.rustup
-```
-
-**配置写在哪**：⚠️ **不是 `.zshrc`**，而是 `~/.zshenv` 和 `~/.profile`：
-
-```bash
-# ~/.zshenv 第 1 行
-. "$HOME/.cargo/env"
-
-# ~/.profile 第 6 行（同样的内容）
-. "$HOME/.cargo/env"
-```
-
-> **为什么是 `.zshenv` 而不是 `.zshrc`**：`.zshenv` 对**所有** zsh 进程生效（包括非交互式的、脚本里的），`.zshrc` 只对交互式 shell 生效。rustup 装在这里，是为了让 `cargo build` 在 CI 脚本、Makefile、IDE 里都能找到命令。
->
-> 这是 rustup 安装脚本的默认行为，不是你手动配错了。
-
-`~/.cargo/env` 的内容（自动生成）：
-
-```sh
-#!/bin/sh
-case ":${PATH}:" in
-    *:"$HOME/.cargo/bin":*) ;;
-    *) export PATH="$HOME/.cargo/bin:$PATH" ;;
-esac
-```
-
-**装工具链和 target**：
-
-```bash
-rustup toolchain list                        # 列出已装工具链
-rustup target add thumbv7m-none-eabi         # 装交叉编译目标（上一篇用的）
-rustup component add llvm-tools              # 装组件
-```
-
-**验证**：
-
-```bash
-cat ~/.rustup/settings.toml
-# default_toolchain = "stable-x86_64-unknown-linux-gnu"
-
-which cargo
-# /home/zizimiku/.cargo/bin/cargo
-```
-
 #### uv
 
 **安装**：
@@ -307,7 +252,6 @@ uv pip install -r req.txt         # 装依赖（替代 pip install）
 | --- | --- | --- |
 | **sdkman** | `~/.zshrc` **末尾** | 要抢占 PATH 最前面，必须最后加载 |
 | **nvm** | `~/.zshrc` | 只需交互式 shell 生效 |
-| **rustup** | `~/.zshenv` + `~/.profile` | 要对所有 shell 进程生效（含脚本/IDE） |
 | **uv** | 无需配置 | 装到已在 PATH 的 `~/.local/bin` |
 
 这张表是排查"命令找不到"的第一站——**装完没生效，先看配置有没有写对地方**。
@@ -431,13 +375,12 @@ echo $PATH | tr ':' '\n' | grep -n sdkman
 
 ### 各管理器常用命令
 
-| 操作 | nvm | sdkman | uv | rustup |
-| --- | --- | --- | --- | --- |
-| 装某版本 | `nvm install 24` | `sdk install java 25.0.2-tem` | `uv python install 3.14` | `rustup toolchain install stable` |
-| 切换 | `nvm use 24` | `sdk use java 25.0.2-tem` | `uv python pin 3.14` | `rustup default stable` |
-| 列已装 | `nvm ls` | `sdk list java \| grep installed` | `uv python list` | `rustup toolchain list` |
-| 列可装 | `nvm ls-remote` | `sdk list java` | `uv python list --all-versions` | `rustup toolchain list -v` |
-
+| 操作 | nvm（Node） | sdkman（Java） | uv（Python） |
+| --- | --- | --- | --- |
+| 装版本 | `nvm install 24` | `sdk install java 25.0.2-tem` | `uv python install 3.14` |
+| 切换 | `nvm use 24` / `nvm alias default 24` | `sdk use java 21.0.5-tem` | `uv python pin 3.14` |
+| 列已装 | `nvm ls` | `sdk list java \| grep installed` | `uv python list` |
+| 列可装 | `nvm ls-remote` | `sdk list java` | `uv python list --all-versions` |
 
 ## 一、KiCad
 

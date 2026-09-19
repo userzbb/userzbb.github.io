@@ -63,283 +63,50 @@ category: Hardware
 
 ### 说明
 
-**为什么单独讲这个**：这套工具链对运行时版本有要求——Zephyr 的 `west` 要 Python ≥ 3.10，Rust 嵌入式要特定版本的 rustup target。Fedora 仓库里的版本往往跟不上，所以实际部署时通常靠**版本管理器**。
+**为什么单独讲这个**：这套工具链对运行时版本有要求——Rust 嵌入式的 `rustup target` 需要特定版本的目标支持，AI 工具链的 `npx skills` 需要 Node ≥ 18。Fedora 仓库里的版本往往跟不上，所以实际部署时通常靠**版本管理器**。
 
-本机装了四个：
+本文用到两个：
 
-| 语言 | 管理器 | 官网 | 本机版本 | 本文用到吗 |
+| 语言 | 管理器 | 官网 | 本机版本 | 用在哪 |
 | --- | --- | --- | --- | --- |
-| **Rust** | rustup | [rustup.rs](https://rustup.rs/) | 1.29.1 | ✅ 是 |
-| **Node.js** | nvm | [github.com/nvm-sh/nvm](https://github.com/nvm-sh/nvm) | v24.14.0 | ⚪ 否（下一篇用的） |
-| **Java** | sdkman | [sdkman.io](https://sdkman.io/) | Temurin 25.0.2 | ⚪ 否（下一篇用的） |
-| **Python** | uv | [astral.sh/uv](https://astral.sh/uv/) | 0.10.10 | ❌ **否**（见下） |
+| **Rust** | rustup | [rustup.rs](https://rustup.rs/) | 1.29.1 | 第五节：装交叉编译 target |
+| **Node.js** | nvm | [github.com/nvm-sh/nvm](https://github.com/nvm-sh/nvm) | v24.14.0 | 第九节：`npx skills` 装 AI skills |
 
-**另外一个 Fedora 原生的**：`alternatives`（系统自带），用于在多个已安装版本间切换默认项。
-
-> **关于 Python 与 uv**：本机装了 `uv`，但**这篇文章的 Python 部分没用到它**——Zephyr 的依赖用的是标准的 `python3 -m venv` + `pip`，这是官方文档给的方式，也是实测跑通的方式。
->
-> `uv` 是更快的替代品（Rust 写的，装依赖比 pip 快一个数量级），想用它替换的话：
->
-> ```bash
-> # 等价于 python3 -m venv + pip install
-> uv venv .venv
-> uv pip install -r requirements.txt
-> ```
->
-> 但**本文的验证步骤没有跑过这条路径**，所以不写进安装流程。列在这里只说明本机有这个工具。
+> **下一篇会用到另外两个**：sdkman（Java，跑 Freerouting）和 uv（Python）。本文用不到，所以不讲——需要的话看《[用 AI 设计一块 STM32 板子](/blog/ai-pcb-workflow/)》。
 
 ### 安装
 
 ```bash title="版本管理器安装" frame="terminal"
-# rustup —— Rust 工具链（本文第五节用）
+# rustup —— Rust 工具链（第五节用）
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-# nvm —— Node 版本管理
+# nvm —— Node 版本管理（第九节用）
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
 nvm install 24
-
-# sdkman —— Java / Maven / Gradle
-curl -s "https://get.sdkman.io" | bash
-sdk install java 25.0.2-tem
-
-# uv —— Python 版本与项目管理
-curl -LsSf https://astral.sh/uv/install.sh | sh
-uv python install 3.14
 ```
 
 **Fedora 原生方案**（不用版本管理器时）：
 
 ```bash
-sudo dnf install nodejs npm java-25-openjdk python3
-sudo alternatives --config java     # 多版本共存时切换
+sudo dnf install nodejs npm
 ```
 
-### Java 的三种装法（本机混用的情况）
+### 配置写在哪
 
-Java 是**安装方式最容易搞乱**的一个——Fedora 上有三条路，而且本机**三条都用了**：
+两个管理器的配置文件**不一样**，这是排查"命令找不到"的第一站：
 
-| 方式 | 装了什么 | 位置 | 生效？ |
-| --- | --- | --- | --- |
-| **① sdkman** | Temurin 25.0.2 | `~/.sdkman/candidates/java/25.0.2-tem` | ✅ **是** |
-| **② dnf** | OpenJDK 25 + 27(EA) | `/usr/lib/jvm/java-*-openjdk` | ❌ 被 PATH 挡住 |
-| **③ alternatives** | 指向 dnf 那份 | `/usr/bin/java` → `/etc/alternatives/java` | ❌ 同上 |
-
-**为什么 sdkman 赢**：`.zshrc` 末尾加载了 sdkman 初始化脚本，它把自己的 `bin` 插到 PATH 前面：
-
-```bash
-# ~/.zshrc 末尾
-export SDKMAN_DIR="$HOME/.sdkman"
-[[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
-```
-
-```bash
-echo $PATH | tr ':' '\n' | grep -n sdkman
-# 11:/home/zizimiku/.sdkman/candidates/java/current/bin
-```
-
-第 11 位，排在 `/usr/bin` 之前 → sdkman 生效。
-
-**sdkman 的切换机制**是用符号链接：
-
-```bash
-ls -la ~/.sdkman/candidates/java/
-# 25.0.2-tem/
-# current -> /home/zizimiku/.sdkman/candidates/java/25.0.2-tem
-```
-
-`sdk use java <版本>` 改的就是这个链接，不重装、不动 PATH。
-
-#### 三种方式怎么选
-
-| 场景 | 推荐 | 命令 |
+| 管理器 | 配置写在 | 为什么在那里 |
 | --- | --- | --- |
-| **需要多版本切换** | sdkman | `sdk install java 21.0.x-tem` / `sdk use java 21.0.x-tem` |
-| **只要一个版本、想省事** | dnf | `sudo dnf install java-21-openjdk` |
-| **已有多个 dnf 版本，切换默认** | alternatives | `sudo alternatives --config java` |
+| **rustup** | `~/.zshenv` + `~/.profile` | 要对**所有** shell 进程生效（含脚本、Makefile、IDE），不只是交互式 |
+| **nvm** | `~/.zshrc` | 只需交互式 shell 生效 |
 
-> **坑**：三套共存时**最容易改错那份**。用 `sudo alternatives --config java` 切到 Java 21，`java --version` 却还是 25——因为 sdkman 那份排在 PATH 前面，alternatives 改的 `/usr/bin/java` 根本没被执行到。
->
-> 排查永远是同一招：**先 `which java` 看路径，再对照 PATH 顺序**。
+**实际配置内容**（本机实测）：
 
-### 验证
-
-**装完要知道哪个在生效**——多个管理器共存时，**PATH 顺序决定谁赢**：
-
-```bash title="确认实际生效的版本" frame="terminal"
-which rustc && rustc --version
-# /home/zizimiku/.cargo/bin/rustc
-# rustc 1.98.1 (48a229cea 2026-09-01)
-
-which cargo && cargo --version
-# /home/zizimiku/.cargo/bin/cargo
-# cargo 1.98.1
-
-which python3 && python3 --version
-# /usr/bin/python3
-# Python 3.14.7
-```
-
-`which` 输出的路径就是答案——它告诉你实际执行的是哪一份。
-
-### ⚠️ 多套共存时的坑
-
-本机的 Java 是典型案例——**同时存在三套**：
-
-```bash
-# 1. dnf 装的
-rpm -qa | grep openjdk
-# java-25-openjdk-headless-25.0.4.1.1-1.1.fc44.x86_64
-# java-latest-openjdk-27.0.0.0.35-0.0.1.0.ea.fc44.x86_64    ← Java 27 (EA)
-
-# 2. sdkman 装的
-ls ~/.sdkman/candidates/java/
-# 25.0.2-tem
-
-# 3. alternatives 的配置
-alternatives --list | grep java
-# jre_25  auto  /usr/lib/jvm/java-25-openjdk
-```
-
-**实际生效的是 sdkman 那份**——因为 `.zshrc` 里 sdkman 初始化时把它的 bin 加到了 PATH 前面：
-
-```bash
-# ~/.zshrc
-export SDKMAN_DIR="$HOME/.sdkman"
-[[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
-```
-
-验证 PATH 顺序：
-
-```bash
-echo $PATH | tr ':' '\n' | grep -n sdkman
-# 11:/home/zizimiku/.sdkman/candidates/java/current/bin
-```
-
-排在 `/usr/bin` 之前，所以 sdkman 赢。**dnf 装的那两套实际形同虚设**——占了 1GB 多磁盘，但从不被执行。
-
-> **实用建议**：选定一套管理器就坚持用，别混着来。排查"版本不对"时，先 `which` 看路径，再看 PATH 顺序。
-
-### 各管理器常用命令
-
-| 操作 | rustup | nvm | sdkman | uv |
-| --- | --- | --- | --- | --- |
-| 装版本 | `rustup toolchain install stable` | `nvm install 24` | `sdk install java 25.0.2-tem` | `uv python install 3.14` |
-| 切换 | `rustup default stable` | `nvm use 24` | `sdk use java 25.0.2-tem` | `uv python pin 3.14` |
-| 列已装 | `rustup toolchain list` | `nvm ls` | `sdk list java \| grep installed` | `uv python list` |
-| 装组件 | `rustup target add thumbv7m-none-eabi` | — | — | — |
-
-> `rustup target add` 是本文第五节装交叉编译目标用的命令。
-
-### 每个管理器的安装与配置细节
-
-上面一段命令看着简单，但**每个管理器"配到哪、怎么生效"都不一样**。这是实测的本机情况：
-
-#### sdkman
-
-**安装**：
-
-```bash
-curl -s "https://get.sdkman.io" | bash
-# 脚本会装到 ~/.sdkman/ 并在 shell 配置里追加初始化代码
-```
-
-**配置写在哪**：`~/.zshrc` **末尾**（脚本自动追加，注释明确说必须在末尾）：
-
-```bash
-# ~/.zshrc 第 127-129 行
-#THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
-export SDKMAN_DIR="$HOME/.sdkman"
-[[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
-```
-
-> **为什么必须放末尾**：sdkman 会把自己的 `bin` 目录**插到 PATH 最前面**，如果放在文件中间，后面再有别的工具往 PATH 里加东西，顺序就乱了。
-
-**装 Java**：
-
-```bash
-sdk install java 25.0.2-tem     # 25.0.2 = 版本，tem = Temurin 发行版
-sdk list java                    # 列出所有可装版本（带发行版后缀）
-sdk use java 21.0.5-tem          # 临时切换（当前 shell）
-sdk default java 21.0.5-tem      # 永久切换
-```
-
-**验证配置生效**：
-
-```bash
-echo $SDKMAN_DIR
-# /home/zizimiku/.sdkman
-
-sdk version
-# SDKMAN 5.20.0
-
-ls -la ~/.sdkman/candidates/java/
-# 25.0.2-tem/
-# current -> /home/zizimiku/.sdkman/candidates/java/25.0.2-tem
-```
-
-#### nvm
-
-**安装**：
-
-```bash
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
-```
-
-**配置写在哪**：`~/.zshrc`（第 132-134 行）：
-
-```bash
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"                    # 核心
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # 补全
-```
-
-**装 Node**：
-
-```bash
-nvm install 24       # 装 v24 最新
-nvm use 24           # 当前 shell 用 24
-nvm alias default 24 # 设为默认
-nvm ls               # 列出已装
-nvm ls-remote        # 列出可装（会请求网络）
-```
-
-**验证**：
-
-```bash
-echo $NVM_DIR
-# /home/zizimiku/.nvm
-
-ls ~/.nvm/versions/node/
-# v24.14.0
-
-which node
-# /home/zizimiku/.nvm/versions/node/v24.14.0/bin/node
-```
-
-#### rustup
-
-**安装**：
-
-```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-# 默认选项会装到 ~/.cargo 和 ~/.rustup
-```
-
-**配置写在哪**：⚠️ **不是 `.zshrc`**，而是 `~/.zshenv` 和 `~/.profile`：
-
-```bash
-# ~/.zshenv 第 1 行
-. "$HOME/.cargo/env"
-
-# ~/.profile 第 6 行（同样的内容）
+```bash title="~/.zshenv" frame="terminal"
 . "$HOME/.cargo/env"
 ```
 
-> **为什么是 `.zshenv` 而不是 `.zshrc`**：`.zshenv` 对**所有** zsh 进程生效（包括非交互式的、脚本里的），`.zshrc` 只对交互式 shell 生效。rustup 装在这里，是为了让 `cargo build` 在 CI 脚本、Makefile、IDE 里都能找到命令。
->
-> 这是 rustup 安装脚本的默认行为，不是你手动配错了。
-
-`~/.cargo/env` 的内容（自动生成）：
+`~/.cargo/env` 是 rustup 自动生成的：
 
 ```sh
 #!/bin/sh
@@ -349,63 +116,47 @@ case ":${PATH}:" in
 esac
 ```
 
-**装工具链和 target**：
-
-```bash
-rustup toolchain list                        # 列出已装工具链
-rustup target add thumbv7m-none-eabi         # 装交叉编译目标（上一篇用的）
-rustup component add llvm-tools              # 装组件
+```bash title="~/.zshrc" frame="terminal"
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
 ```
 
-**验证**：
+### 验证
+
+**装完要知道哪个在生效**——`which` 的路径就是答案：
+
+```bash title="确认实际生效的版本" frame="terminal"
+which rustc && rustc --version
+# /home/zizimiku/.cargo/bin/rustc
+# rustc 1.98.1 (48a229cea 2026-09-01)
+
+which node && node --version
+# /home/zizimiku/.nvm/versions/node/v24.14.0/bin/node
+# v24.14.0
+
+which npx
+# /home/zizimiku/.nvm/versions/node/v24.14.0/bin/npx
+```
+
+确认 rustup 的默认工具链：
 
 ```bash
 cat ~/.rustup/settings.toml
 # default_toolchain = "stable-x86_64-unknown-linux-gnu"
-
-which cargo
-# /home/zizimiku/.cargo/bin/cargo
 ```
 
-#### uv
+### 常用命令
 
-**安装**：
-
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-# 装到 ~/.local/bin/uv
-```
-
-**配置**：**无需额外配置**——`~/.local/bin` 本来就在 PATH 里。
-
-```bash
-which uv
-# /home/zizimiku/.local/bin/uv
-```
-
-**用法**：
-
-```bash
-uv python list                    # 列出可用/已装的 Python
-uv python install 3.14            # 装一个 Python 版本
-uv venv .venv                     # 建虚拟环境（替代 python3 -m venv）
-uv pip install -r req.txt         # 装依赖（替代 pip install）
-```
-
-> **本文没用 uv**——见前面说明，MCP 服务器的依赖用的是标准 `python3 -m venv` + `pip`。
-
-#### 配置位置速查
-
-| 管理器 | 配置写在 | 为什么 |
+| 操作 | rustup | nvm |
 | --- | --- | --- |
-| **sdkman** | `~/.zshrc` **末尾** | 要抢占 PATH 最前面，必须最后加载 |
-| **nvm** | `~/.zshrc` | 只需交互式 shell 生效 |
-| **rustup** | `~/.zshenv` + `~/.profile` | 要对所有 shell 进程生效（含脚本/IDE） |
-| **uv** | 无需配置 | 装到已在 PATH 的 `~/.local/bin` |
+| 装版本 | `rustup toolchain install stable` | `nvm install 24` |
+| 切换 | `rustup default stable` | `nvm use 24` |
+| 列已装 | `rustup toolchain list` | `nvm ls` |
+| 列可装 | `rustup toolchain list -v` | `nvm ls-remote` |
+| 装组件/target | `rustup target add thumbv7m-none-eabi` | — |
 
-这张表是排查"命令找不到"的第一站——**装完没生效，先看配置有没有写对地方**。
-
----
+> **`rustup target add` 是本文第五节的关键命令**——Rust 嵌入式开发必须装对应的交叉编译目标（如 `thumbv7m-none-eabi` 对应 Cortex-M3）。
 
 ## 一、主机编译工具链
 
