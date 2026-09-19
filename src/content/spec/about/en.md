@@ -1,73 +1,18 @@
 
-Momo originates from Xiaohongshu's 📕, serving as every new user's initial nickname, symbolizing a fresh start. The blog's design philosophy stems from this concept, beginning with simplicity to strike a balance between complex functionality and minimalist aesthetics.
+A shark-cat, documenting my learning and tinkering here.
 
-## ✨ Features
+Things I mostly work on: embedded systems (STM32 / Verilog), Rust, and various development environment setups.
 
-* **Minimalist Design**: Clean page layout with black and white as primary colors, accented by blue
-* **Dark Mode**: Supports manual switching or automatic system adaptation
-* **Article Search**: Implements localized search using [pagefind](https://pagefind.app/)
-* **Internationalization (i18n)**: Supports multilingual switching, currently available in Simplified Chinese and English
-* **Mobile Adaptation**: Components optimized for mobile devices, delivering the same experience as desktop browsers
-* **Commenting**: Supports local deployment and Cloudflare deployment. See [Backend](https://github.com/Motues/Momo-Backend) for details
-* **Extensive Markdown syntax**: Supports Katex, Typst, and Alert components, GitHub cards, custom syntax, and more
-* **Local CMS**: Start it with `pnpm cms` to edit posts with live preview instead of editing Markdown by hand
-* **Command line tool**: `pnpm momo` provides config backup/restore, one-command updates, new post creation and environment checks
-* Other core features: Article categories, directory, RSS subscription, text statistics, reading time
+## 🔗 Find me
 
-## 🚀 Quick Start
-
-> Requirements: Node.js **>= 22** (24 LTS recommended) and [pnpm](https://pnpm.io/)
-
-1. Clone this project
-    ```bash
-    git clone https://github.com/Motues/Momo.git
-    cd Momo
-    ```
-2. Run `pnpm install` to install dependencies (use `npm install -g pnpm` to install `pnpm`)
-3. Run `pnpm dev` to start the development server
-
-## 🔧 Configuration
-
-Refer to the [Configuration Guide](./config_en.md). For detailed information, visit [Momo](https://momo.motues.top/en/intro/config) and read the corresponding articles.
-
-Site information, theme switches, languages and the Cover text of each page are configured in `src/config.ts`; the `site` and `i18n` fields of `astro.config.mjs` read from that file automatically.
-
-## 📚 Updating
-
-Refer to the [Update Guide](./release_en.md) for instructions on updating your project. Visit [Momo](https://momo.motues.top/en/intro/release) for detailed information.
-
-Run `pnpm momo update` to do it automatically: it backs up your config, pulls the update and installs dependencies, then lists the config files that need manual merging.
-
-## 🍃 Branch
-
-Below are some branches that are maintained on an irregular basis; we cannot guarantee that they will remain in sync with the `main` branch.
-
-* `memos`: Implements the Memos card feature
-* `v5`: Version v5—no longer supported
-
-## ⚡ Commands
-
-All commands below can be executed in the root directory
-
-| Command | Function |
+| Platform | Link |
 | --- | --- |
-| `pnpm install` | Install dependencies |
-| `pnpm dev` | Start local server at `http://localhost:4321` |
-| `pnpm build` | Build release version to `./dist` (including the pagefind search index) |
-| `pnpm preview` | Preview built release version |
-| `pnpm astro ...` | Run `astro` commands, e.g., `astro add` |
-| `pnpm cms` | Start the local CMS at `http://localhost:5188` (run `pnpm install` first) |
-| `pnpm momo new [path]` | Create a new post; the path defaults to a date based one, e.g. `pnpm momo new docs/test` |
-| `pnpm momo backup` | Back up `src/config.ts` to `.backup/` (add `--config` for every config file, `--all` to also include posts and images) |
-| `pnpm momo restore [name]` | Restore from a backup (the latest one by default) |
-| `pnpm momo update` | Pull the repository update and sync dependencies (backs up `src/config.ts` first) |
-| `pnpm momo clean` | Remove build output and caches (add `--all` to also remove `node_modules`) |
-| `pnpm momo doctor` | Check the environment, dependencies and project status |
-| `pnpm momo --help` | Show every momo command and option |
+| GitHub | https://github.com/userzbb |
+| bilibili | https://space.bilibili.com/36262002 |
+| Twitter | https://x.com/wild_zzb |
+| Steam | https://steamcommunity.com/profiles/76561198364775937/ |
+| YouTube | https://www.youtube.com/@bozh2584 |
 
+## 🛠 This blog
 
-## 📚 References
-
-* [Astro](https://astro.build/)
-* [Fuwari](https://github.com/saicaca/fuwari)
-* [Tyndall](https://github.com/moyuin-aka/tyndall-public)
+Built with [Astro](https://astro.build/) and the [Momo](https://github.com/Motues/Momo) theme.
