@@ -18,6 +18,7 @@ import { remarkCombined } from './src/plugins/remark-combined.mjs';
 import { remarkTypst } from './src/plugins/remark-typst.mjs';
 import { remarkReadingTime } from './src/plugins/remark-reading-time.mjs';
 import { remarkLqip } from './src/plugins/remark-lqip.js';
+import expressiveCode from 'astro-expressive-code';
 
 import svelte from "@astrojs/svelte";
 
@@ -43,13 +44,8 @@ export default defineConfig({
       "material-symbols": ["*"],
       "fluent": ["*"],
     }
-  }), svelte()],
+  }), svelte(), expressiveCode()],
   markdown: {
-    shikiConfig: {
-      theme: 'one-dark-pro', // code theme
-      // theme: 'github-dark',
-      wrap: false
-    },
     processor: unified({
       remarkPlugins: [
         remarkMath,

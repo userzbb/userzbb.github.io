@@ -123,16 +123,10 @@ export const i18nConfig: I18nConfig = {
 
 export const friendLinkConfig: FriendLink[] = [
     {
-        name: 'Motues', // Name of the friend link
-        avatar: 'https://www.motues.top/avatar.jpg', // Avatar image of the friend link
-        url: 'https://www.motues.top', // URL of the friend link
-        description: 'Momo 主题作者' // Description of the friend link, set to an empty string if not needed
-    },
-    {
-        name: 'Astro',
-        avatar: 'https://avatars.githubusercontent.com/u/44914786',
-        url: 'https://astro.build',
-        description: 'Build fast websites, faster.'
+        name: 'Glacier', // Name of the friend link
+        avatar: 'https://www.glac1er.top/favicon/icon.png', // Avatar image of the friend link
+        url: 'http://glac1er.top', // URL of the friend link
+        description: '如果你看到了这一样文字，请在源文件改成你想要的文字~' // Description of the friend link
     }
     // Add more friend links here
 ]
