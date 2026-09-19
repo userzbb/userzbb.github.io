@@ -50,6 +50,53 @@ git log -1 --format='%h %ad %s' --date=short upstream/main
 git merge-base --is-ancestor upstream/main HEAD && echo "可 fast-forward，无冲突"
 ```
 
+## 更新上游主题
+
+**`pnpm momo update` 够不到上游。** 它取的是 `@{u}`（即 `origin/main`，你自己的仓库），
+且用 `git pull --ff-only` —— 本地一旦领先上游就直接失败。要更新 `Motues/Momo` 用：
+
+```bash
+node script/sync-upstream.mjs           # 完整流程
+node script/sync-upstream.mjs --dry-run # 只看差异，不改动
+```
+
+流程：前置检查 → 存档分支 → `git fetch upstream` → `git merge upstream/main`
+→ 冲突分流 → `pnpm install --frozen-lockfile` + `pnpm build` → 提示推送。
+
+冲突处理规则（实测确认）：
+
+| 冲突类型 | 状态码 | 处理 |
+| --- | --- | --- |
+| 内容文件：我们删了 / 上游改了 | `DU` | **自动保持删除**（`src/content/` 下） |
+| 内容文件：双方都改过 | `UU` | 停下，交人工 |
+| 代码 / 配置 / 样式文件 | `UU` 等 | 停下，交人工 |
+
+只剩「内容文件的 `DU`」会自动处理 —— 其余一律停下，宁可少做不可做错。
+
+**几个坑（都验证过）**：
+
+- `--ff-only` 在分叉时必失败，脚本用的是 `git merge`。
+- 上游若新增一个你本地**未跟踪**的同名文件，git 会中止合并（不覆盖你的文件）。脚本会预先检测并提示，不会让你撞上去。
+- 工作区有**已跟踪**文件的改动时脚本会中止；未跟踪文件（如 `docs/`）不拦。
+- 验证失败**不自动回滚** —— 保留现场比丢掉线索重要。回滚用脚本给出的存档分支：
+  `git reset --hard upstream-sync/<日期>`
+- 同一天多次运行会累积分支（`upstream-sync/2026-09-19-2`），确认后可手动删除。
+
+### 会冲突的文件（PR #1 引入，需留意）
+
+这些文件上游也在维护，上游一旦改动就会冲突：
+
+```
+⚠ .gitignore  astro.config.mjs  package.json  pnpm-lock.yaml
+⚠ src/components/misc/Markdown.astro  src/config.ts  src/styles/markdown.css
+```
+
+**仅本地、永不冲突**：`CLAUDE.md`、`ec.config.mjs`、`src/plugins/grammar-ld.mjs`、
+`script/sync-upstream.mjs`、`src/content/blog/stm32-dev-env/`。
+
+另外本地删除了上游 30 个示例文章（`src/content/blog/{test,markdown,intro,memory}`），
+这些是最高频的冲突来源 —— `DU` 规则就是为它们设的。
+
 ## 命令
 
 | 指令 | 作用 |
