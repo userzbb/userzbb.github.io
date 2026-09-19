@@ -137,6 +137,64 @@ sudo dnf install nodejs npm java-25-openjdk python3
 sudo alternatives --config java
 ```
 
+### Java 的三种装法（本机混用的情况）
+
+Java 是这套工具链里**安装方式最容易搞乱**的一个——Fedora 上有三条路，而且本机**三条路都用了**。先看实际状态：
+
+```bash title="本机 Java 现状" frame="terminal"
+# 实际生效的
+which java
+# /home/zizimiku/.sdkman/candidates/java/current/bin/java
+java --version | head -1
+# openjdk 25.0.2 2026-01-20 LTS
+```
+
+| 方式 | 装了什么 | 位置 | 生效？ |
+| --- | --- | --- | --- |
+| **① sdkman** | Temurin 25.0.2（2026-01-21 装） | `~/.sdkman/candidates/java/25.0.2-tem` | ✅ **是** |
+| **② dnf** | OpenJDK 25 + 27(EA) | `/usr/lib/jvm/java-*-openjdk` | ❌ 被 PATH 挡住 |
+| **③ alternatives** | 指向 dnf 的那份 | `/usr/bin/java` → `/etc/alternatives/java` | ❌ 同上 |
+
+**为什么 sdkman 赢**：`.zshrc` 末尾加载了 sdkman 的初始化脚本，它把自己的 `bin` 目录插到 PATH 前面：
+
+```bash
+# ~/.zshrc 末尾
+export SDKMAN_DIR="$HOME/.sdkman"
+[[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
+```
+
+```bash
+echo $PATH | tr ':' '\n' | grep -n sdkman
+# 11:/home/zizimiku/.sdkman/candidates/java/current/bin
+```
+
+第 11 位，排在 `/usr/bin` 之前 → sdkman 生效。
+
+**sdkman 的切换机制**：它用符号链接管理"当前版本"——
+
+```bash
+ls -la ~/.sdkman/candidates/java/
+# 25.0.2-tem/
+# current -> /home/zizimiku/.sdkman/candidates/java/25.0.2-tem
+```
+
+`current` 是软链，`sdk use java <版本>` 改的就是它。所以切换版本不动 PATH、不重装，只是换个链接目标。
+
+#### 三种方式怎么选
+
+| 场景 | 推荐 | 命令 |
+| --- | --- | --- |
+| **需要多版本切换** | sdkman | `sdk install java 21.0.x-tem` / `sdk use java 21.0.x-tem` |
+| **只要一个版本、想省事** | dnf | `sudo dnf install java-21-openjdk` |
+| **已有多个 dnf 版本，切换默认** | alternatives | `sudo alternatives --config java` |
+
+**本机选择 sdkman 的理由**：Freerouting 要 Java ≥ 21，但不同项目可能锁不同版本。sdkman 切换不用重装、不影响系统包，最灵活。
+
+> **坑**：三套共存时**最容易犯的错是改错了那份**。比如用 `sudo alternatives --config java` 切到 Java 21，然后发现 `java --version` 还是 25——因为 sdkman 那份排在前面，alternatives 改的是 `/usr/bin/java`，根本没被执行到。
+>
+> 排查方法永远是同一个：**先 `which java` 看路径，再对照 PATH 顺序**。
+```
+
 ### 验证
 
 **光装还不够——要知道哪个在生效。** 装了多个版本管理器时，**PATH 顺序决定谁赢**。
