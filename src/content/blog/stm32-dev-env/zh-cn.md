@@ -629,6 +629,27 @@ sudo dnf install platformio
 
 这会连带装好 `python3-platformio` 等依赖。
 
+> **两种安装方式的差异（重要）**：
+>
+> | 方式 | `pio` 位置 | 需要配 PATH 吗 |
+> | --- | --- | --- |
+> | `dnf install platformio` | `/usr/bin/pio` | ❌ 不需要，系统路径里就有 |
+> | 官方安装脚本 | `~/.platformio/penv/bin/pio` | ✅ 需要加到 shell 配置 |
+>
+> 网上大部分教程（包括 AI 助手给的）默认是**官方脚本**方式，会告诉你加这一行：
+> ```bash
+> echo 'export PATH="$HOME/.platformio/penv/bin:$PATH"' >> ~/.zshrc
+> ```
+>
+> **如果你用 dnf 装的，这行是多余的**——`~/.platformio/penv/bin` 这个目录根本不存在，加了无害但没用。识别方法：
+> ```bash
+> which pio
+> # /usr/bin/pio          → dnf 装的，不需要那行 PATH
+> # /home/user/.platformio/penv/bin/pio  → 脚本装的，需要
+> ```
+>
+> 我自己就踩了这个坑：先按教程加了 PATH，后来改用 dnf，那行一直留着没删。
+
 ### 验证
 
 ```bash
@@ -741,10 +762,27 @@ ls ~/STM32CubeMX/
 
 嵌入式开发里 AI 助手能帮上忙的地方：查寄存器、解释编译错误、生成外设初始化代码、写 Makefile、排查启动问题。
 
-但**默认状态下 AI 并不懂你的芯片和工具链**。需要两样东西：
+但**默认状态下 AI 并不懂你的芯片和工具链**。需要两样东西来扩展它——这两者容易混淆，先分清：
 
-- **插件（Plugin）**：扩展 Claude Code 本身的能力（LSP、代码审查、上下文检索等）
-- **Skills（技能包）**：教 AI 特定领域的知识和工作流
+| | 插件（Plugin） | Skills（技能包） |
+| --- | --- | --- |
+| **是什么** | Claude Code 的扩展包，可以含 MCP 服务、命令、hooks、skills | 纯知识文档（Markdown），教 AI 某个领域的怎么做 |
+| **做什么** | 加装**能力**（连数据库、跑语言服务器、查文档） | 传递**知识**（这个工具怎么用、这个流程怎么走） |
+| **怎么装** | `claude plugin install` | `npx skills add` |
+| **来源** | Claude Code 插件市场 | skills.sh 注册表 |
+| **要写代码吗** | 可能要（MCP server） | 不用，写 Markdown 就行 |
+| **典型例子** | `rust-analyzer-lsp`（Rust 语言服务器） | `flash-jlink`（怎么用 J-Link 烧录） |
+
+简单说：**插件给 AI 装工具，skills 给 AI 装知识**。
+
+本次配置涉及的具体工具：
+
+| 工具 | 作用 |
+| --- | --- |
+| **Claude Code** | AI 编程助手 CLI，本文用的就是这个 |
+| **claude plugin** | 插件管理命令（装/更新/列表） |
+| **npx skills** | Skills 管理 CLI（搜索/安装/更新） |
+| **embed-ai-tool** | 社区做的嵌入式 skills 集合，24 个 skill |
 
 ### 插件安装
 
@@ -964,11 +1002,23 @@ npx skills check           # 只检查不更新
 
 前面都是环境配置，这一节是真正的技术活。
 
-### 背景
+### 说明
 
-手上的工程是 **Keil MDK5 + 标准外设库（SPL）** 写的，芯片 STM32F103C8T6。要在 Linux 上用 GCC 编译，面临一个根本障碍：
+**要解决的问题**：手上有个 Windows 上用 Keil 写的工程，想搬到 Linux 上用 GCC 编译。
 
-**Keil 用 ARMASM 汇编器，GCC 用 GNU as，启动文件语法完全不兼容。**
+涉及的几个概念：
+
+| 名词 | 是什么 |
+| --- | --- |
+| **Keil MDK5** | Windows 上的商业嵌入式 IDE，用自家编译器 ARMCC + ARMASM 汇编器 |
+| **ARMASM** | Keil 的汇编器，语法是 `EQU` / `AREA` 那套 |
+| **GNU as** | GCC 的汇编器，语法完全不同（`.global` / `.section`） |
+| **SPL** | 标准外设库（Standard Peripheral Library），ST 的旧版驱动库，Keil 工程常用 |
+| **HAL** | 硬件抽象层，ST 的新版驱动库，CubeMX 生成的代码用它 |
+| **启动文件** | 芯片上电后最先执行的汇编代码：定义中断向量表、初始化栈、跳转到 main |
+| **链接脚本** | 告诉链接器把代码/数据放在内存的哪个位置（Flash 还是 RAM） |
+
+**根本障碍**：Keil 用 ARMASM 汇编器，GCC 用 GNU as，**启动文件语法完全不兼容**。
 
 Keil 的启动文件：
 
@@ -977,7 +1027,7 @@ Stack_Size      EQU     0x00000400
                 AREA    STACK, NOINIT, READWRITE, ALIGN=3
 ```
 
-GCC 完全不认识 `EQU` 和 `AREA`。
+GCC 完全不认识 `EQU` 和 `AREA`。所以必须**重写启动文件**，并补上 GCC 需要的**链接脚本**和 **Makefile**。
 
 ### 从 Keil 工程里挖配置
 
