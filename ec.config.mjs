@@ -1,6 +1,7 @@
 import { defineEcConfig } from 'astro-expressive-code';
 import { pluginCollapsibleSections } from '@expressive-code/plugin-collapsible-sections';
 import { pluginLineNumbers } from '@expressive-code/plugin-line-numbers';
+import ld from './src/plugins/grammar-ld.mjs';
 
 /**
  * Shared presentation settings for Markdown code blocks.
@@ -11,6 +12,11 @@ export default defineEcConfig({
   useDarkModeMediaQuery: false,
   themeCssSelector: (theme) => `[data-theme="${theme.type}"]`,
   plugins: [pluginLineNumbers(), pluginCollapsibleSections()],
+
+  // Shiki ships no `ld` grammar, so register one for linker scripts.
+  shiki: {
+    langs: [ld],
+  },
 
   frames: {
     extractFileNameFromCode: true,
