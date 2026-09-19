@@ -230,6 +230,181 @@ echo $PATH | tr ':' '\n' | grep -n sdkman
 
 > `rustup target add` 是本文第五节装交叉编译目标用的命令。
 
+### 每个管理器的安装与配置细节
+
+上面一段命令看着简单，但**每个管理器"配到哪、怎么生效"都不一样**。这是实测的本机情况：
+
+#### sdkman
+
+**安装**：
+
+```bash
+curl -s "https://get.sdkman.io" | bash
+# 脚本会装到 ~/.sdkman/ 并在 shell 配置里追加初始化代码
+```
+
+**配置写在哪**：`~/.zshrc` **末尾**（脚本自动追加，注释明确说必须在末尾）：
+
+```bash
+# ~/.zshrc 第 127-129 行
+#THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
+export SDKMAN_DIR="$HOME/.sdkman"
+[[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
+```
+
+> **为什么必须放末尾**：sdkman 会把自己的 `bin` 目录**插到 PATH 最前面**，如果放在文件中间，后面再有别的工具往 PATH 里加东西，顺序就乱了。
+
+**装 Java**：
+
+```bash
+sdk install java 25.0.2-tem     # 25.0.2 = 版本，tem = Temurin 发行版
+sdk list java                    # 列出所有可装版本（带发行版后缀）
+sdk use java 21.0.5-tem          # 临时切换（当前 shell）
+sdk default java 21.0.5-tem      # 永久切换
+```
+
+**验证配置生效**：
+
+```bash
+echo $SDKMAN_DIR
+# /home/zizimiku/.sdkman
+
+sdk version
+# SDKMAN 5.20.0
+
+ls -la ~/.sdkman/candidates/java/
+# 25.0.2-tem/
+# current -> /home/zizimiku/.sdkman/candidates/java/25.0.2-tem
+```
+
+#### nvm
+
+**安装**：
+
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+```
+
+**配置写在哪**：`~/.zshrc`（第 132-134 行）：
+
+```bash
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"                    # 核心
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # 补全
+```
+
+**装 Node**：
+
+```bash
+nvm install 24       # 装 v24 最新
+nvm use 24           # 当前 shell 用 24
+nvm alias default 24 # 设为默认
+nvm ls               # 列出已装
+nvm ls-remote        # 列出可装（会请求网络）
+```
+
+**验证**：
+
+```bash
+echo $NVM_DIR
+# /home/zizimiku/.nvm
+
+ls ~/.nvm/versions/node/
+# v24.14.0
+
+which node
+# /home/zizimiku/.nvm/versions/node/v24.14.0/bin/node
+```
+
+#### rustup
+
+**安装**：
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+# 默认选项会装到 ~/.cargo 和 ~/.rustup
+```
+
+**配置写在哪**：⚠️ **不是 `.zshrc`**，而是 `~/.zshenv` 和 `~/.profile`：
+
+```bash
+# ~/.zshenv 第 1 行
+. "$HOME/.cargo/env"
+
+# ~/.profile 第 6 行（同样的内容）
+. "$HOME/.cargo/env"
+```
+
+> **为什么是 `.zshenv` 而不是 `.zshrc`**：`.zshenv` 对**所有** zsh 进程生效（包括非交互式的、脚本里的），`.zshrc` 只对交互式 shell 生效。rustup 装在这里，是为了让 `cargo build` 在 CI 脚本、Makefile、IDE 里都能找到命令。
+>
+> 这是 rustup 安装脚本的默认行为，不是你手动配错了。
+
+`~/.cargo/env` 的内容（自动生成）：
+
+```sh
+#!/bin/sh
+case ":${PATH}:" in
+    *:"$HOME/.cargo/bin":*) ;;
+    *) export PATH="$HOME/.cargo/bin:$PATH" ;;
+esac
+```
+
+**装工具链和 target**：
+
+```bash
+rustup toolchain list                        # 列出已装工具链
+rustup target add thumbv7m-none-eabi         # 装交叉编译目标（上一篇用的）
+rustup component add llvm-tools              # 装组件
+```
+
+**验证**：
+
+```bash
+cat ~/.rustup/settings.toml
+# default_toolchain = "stable-x86_64-unknown-linux-gnu"
+
+which cargo
+# /home/zizimiku/.cargo/bin/cargo
+```
+
+#### uv
+
+**安装**：
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# 装到 ~/.local/bin/uv
+```
+
+**配置**：**无需额外配置**——`~/.local/bin` 本来就在 PATH 里。
+
+```bash
+which uv
+# /home/zizimiku/.local/bin/uv
+```
+
+**用法**：
+
+```bash
+uv python list                    # 列出可用/已装的 Python
+uv python install 3.14            # 装一个 Python 版本
+uv venv .venv                     # 建虚拟环境（替代 python3 -m venv）
+uv pip install -r req.txt         # 装依赖（替代 pip install）
+```
+
+> **本文没用 uv**——见前面说明，MCP 服务器的依赖用的是标准 `python3 -m venv` + `pip`。
+
+#### 配置位置速查
+
+| 管理器 | 配置写在 | 为什么 |
+| --- | --- | --- |
+| **sdkman** | `~/.zshrc` **末尾** | 要抢占 PATH 最前面，必须最后加载 |
+| **nvm** | `~/.zshrc` | 只需交互式 shell 生效 |
+| **rustup** | `~/.zshenv` + `~/.profile` | 要对所有 shell 进程生效（含脚本/IDE） |
+| **uv** | 无需配置 | 装到已在 PATH 的 `~/.local/bin` |
+
+这张表是排查"命令找不到"的第一站——**装完没生效，先看配置有没有写对地方**。
+
 ---
 
 ## 一、主机编译工具链
