@@ -31,6 +31,34 @@ category: Hardware
 
 ---
 
+## 工具链官方链接
+
+本文涉及的工具，官方地址集中列在这里，方便查阅：
+
+| 工具 | 官网 | 文档 |
+| --- | --- | --- |
+| **GCC** | [gcc.gnu.org](https://gcc.gnu.org/) | — |
+| **Clang / LLVM** | [clang.llvm.org](https://clang.llvm.org/) | — |
+| **CMake** | [cmake.org](https://cmake.org/) | — |
+| **Ninja** | [ninja-build.org](https://ninja-build.org/) | — |
+| **GDB** | [sourceware.org/gdb](https://sourceware.org/gdb/) | — |
+| **GNU Make** | [ftp.gnu.org/gnu/make](https://ftp.gnu.org/gnu/make/) | — |
+| **ARM GNU Toolchain** | [developer.arm.com](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads) | — |
+| **newlib** | [sourceware.org/newlib](https://sourceware.org/newlib/) | — |
+| **ST-Link 工具** | [github.com/stlink-org/stlink](https://github.com/stlink-org/stlink) | — |
+| **OpenOCD** | [openocd.org](https://openocd.org/) | — |
+| **SEGGER J-Link** | [segger.com/downloads/jlink](https://www.segger.com/downloads/jlink/) | — |
+| **Rust / rustup** | [rustup.rs](https://rustup.rs/) | [Rust 嵌入式手册](https://docs.rust-embedded.org/book/) |
+| **probe-rs** | [probe.rs](https://probe.rs/) | [udev 配置](https://probe.rs/docs/getting-started/probe-setup/) |
+| **Zephyr** | [zephyrproject.org](https://www.zephyrproject.org/) | [docs.zephyrproject.org](https://docs.zephyrproject.org/) |
+| **PlatformIO** | [platformio.org](https://platformio.org/) | [docs.platformio.org](https://docs.platformio.org/) |
+| **STM32CubeMX** | [st.com/stm32cubemx](https://www.st.com/en/development-tools/stm32cubemx.html) | — |
+| **STM32CubeProg** | [st.com/stm32cubeprog](https://www.st.com/en/development-tools/stm32cubeprog.html) | — |
+
+> 所有链接于 2026-09-20 实测可访问。ST 官网有反爬机制，命令行 `curl` 可能返回异常状态码，浏览器访问正常。
+
+---
+
 ## 一、主机编译工具链
 
 ### 说明
