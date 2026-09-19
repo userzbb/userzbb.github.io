@@ -81,6 +81,131 @@ category: Hardware
 
 ---
 
+## 版本管理工具
+
+### 说明
+
+**为什么单独讲这个**：这套工具链对运行时版本有硬要求——KiCad 的 MCP 服务器要 Node ≥ 18，Freerouting 要 Java ≥ 21。而 Fedora 仓库里的版本往往偏旧或不够灵活，所以实际部署时通常靠**版本管理器**来装和切换。
+
+本机装了四个：
+
+| 语言 | 管理器 | 官网 | 本机版本 | 本文用到吗 |
+| --- | --- | --- | --- | --- |
+| **Node.js** | nvm | [github.com/nvm-sh/nvm](https://github.com/nvm-sh/nvm) | v24.14.0 | ✅ 是（跑 MCP） |
+| **Java** | sdkman | [sdkman.io](https://sdkman.io/) | Temurin 25.0.2 | ✅ 是（跑 Freerouting） |
+| **Rust** | rustup | [rustup.rs](https://rustup.rs/) | 1.29.1 | ⚪ 否（上一篇用的） |
+| **Python** | uv | [astral.sh/uv](https://astral.sh/uv/) | 0.10.10 | ❌ **否**（见下） |
+
+**另外一个 Fedora 原生的**：`alternatives`（系统自带），用于在多个已安装版本间切换默认项。
+
+> **关于 Python 与 uv**：本机装了 `uv`，但**这篇文章的 Python 部分没用到它**——两处 Python 操作（MCP 服务器的依赖、以及上一篇 Zephyr 的依赖）用的都是标准的 `python3 -m venv` + `pip`，这是官方文档给的方式，也是实测跑通的方式。
+>
+> `uv` 是个更快的替代品（Rust 写的，装依赖比 pip 快一个数量级），如果你想用它替换：
+>
+> ```bash
+> # 用 uv 建虚拟环境并装依赖（等价于 python3 -m venv + pip install）
+> uv venv .venv
+> uv pip install -r requirements.txt
+> ```
+>
+> 但**本文的验证步骤没有跑过这条路径**，所以不把它写进安装流程。列在这里只是说明本机有这个工具。
+
+### 安装
+
+```bash title="版本管理器安装" frame="terminal"
+# nvm —— Node 版本管理
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+nvm install 24
+
+# sdkman —— Java / Maven / Gradle 版本管理
+curl -s "https://get.sdkman.io" | bash
+sdk install java 25.0.2-tem
+
+# uv —— Python 版本与项目管理（Rust 写的，很快）
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv python install 3.14
+
+# rustup —— Rust 工具链
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+**Fedora 原生方案**（不用版本管理器时）：
+
+```bash
+sudo dnf install nodejs npm java-25-openjdk python3
+# 多个 Java 版本共存时，用 alternatives 切换默认项
+sudo alternatives --config java
+```
+
+### 验证
+
+**光装还不够——要知道哪个在生效。** 装了多个版本管理器时，**PATH 顺序决定谁赢**。
+
+```bash title="确认实际生效的版本" frame="terminal"
+which node && node --version
+# /home/zizimiku/.nvm/versions/node/v24.14.0/bin/node
+# v24.14.0
+
+which java && java --version | head -1
+# /home/zizimiku/.sdkman/candidates/java/current/bin/java
+# openjdk 25.0.2 2026-01-20 LTS
+
+which python3 && python3 --version
+# /usr/bin/python3
+# Python 3.14.7
+```
+
+**`which` 输出的路径就是答案**——它告诉你实际执行的是哪一份。
+
+### ⚠️ 多套共存时的坑
+
+本机的 Java 就是典型案例——**同时存在三套**：
+
+```bash
+# 1. dnf 装的（两套）
+rpm -qa | grep openjdk
+# java-25-openjdk-headless-25.0.4.1.1-1.1.fc44.x86_64
+# java-latest-openjdk-27.0.0.0.35-0.0.1.0.ea.fc44.x86_64    ← Java 27 (EA)
+
+# 2. sdkman 装的
+ls ~/.sdkman/candidates/java/
+# 25.0.2-tem
+
+# 3. alternatives 的配置
+alternatives --list | grep java
+# jre_25  auto  /usr/lib/jvm/java-25-openjdk
+# jre_26  auto  /usr/lib/jvm/java-latest-openjdk
+```
+
+**实际生效的是 sdkman 那份**——因为 `.zshrc` 里 sdkman 的初始化把它的 bin 目录加到了 PATH 前面：
+
+```bash
+# ~/.zshrc
+export SDKMAN_DIR="$HOME/.sdkman"
+[[ -s "$HOME/.sdkman/init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
+```
+
+验证 PATH 顺序：
+
+```bash title="PATH 里谁在前" frame="terminal"
+echo $PATH | tr ':' '\n' | grep -n sdkman
+# 11:/home/zizimiku/.sdkman/candidates/java/current/bin
+```
+
+排在 `/usr/bin`（dnf 装的）之前，所以 sdkman 赢。**另外那两套 dnf 装的 Java 实际形同虚设**——占了 1GB 多磁盘，但从不被执行。
+
+> **实用建议**：选定一套版本管理器后就坚持用它，别混着来。混用时排查"为什么版本不对"很浪费时间——先 `which` 看路径，再看 PATH 顺序。
+
+### 各管理器常用命令
+
+| 操作 | nvm | sdkman | uv | rustup |
+| --- | --- | --- | --- | --- |
+| 装某版本 | `nvm install 24` | `sdk install java 25.0.2-tem` | `uv python install 3.14` | `rustup toolchain install stable` |
+| 切换 | `nvm use 24` | `sdk use java 25.0.2-tem` | `uv python pin 3.14` | `rustup default stable` |
+| 列已装 | `nvm ls` | `sdk list java \| grep installed` | `uv python list` | `rustup toolchain list` |
+| 列可装 | `nvm ls-remote` | `sdk list java` | `uv python list --all-versions` | `rustup toolchain list -v` |
+
+
 ## 一、KiCad
 
 ### 说明
