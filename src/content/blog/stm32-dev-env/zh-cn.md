@@ -824,6 +824,140 @@ ls <项目>/.agents/skills/     # 项目级
 > PromptScript does not support global skill installation
 > ```
 
+### embed-ai-tool 的安装与配置详解
+
+上面提到的 `embed-ai-tool` 有 24 个 skill，装机过程涉及几个概念，值得单独说清楚。
+
+#### 安装
+
+```bash
+# 在项目根目录下执行（不要加 -g）
+cd ~/code/stm32/UJN_test
+npx skills add leokemp223/embed-ai-tool -y
+```
+
+安装过程会在项目里生成**三个位置**：
+
+```
+项目根/
+├── .agents/skills/          ← ① 实际存放处（24 个 skill）
+│   ├── build-cmake/
+│   ├── flash-jlink/
+│   ├── workflow/
+│   └── ...
+├── .claude/skills/          ← ② 符号链接（让 Claude Code 能发现）
+│   └── build-cmake -> ../../.agents/skills/build-cmake
+└── skills-lock.json         ← ③ 锁定文件（记录来源和哈希）
+```
+
+**为什么要这么做？** 这是为了兼容多个 AI 工具：
+
+- `.agents/skills/` 是**通用约定**——GitHub Copilot、OpenCode、Zed、Amp 等 +15 个工具都读这个目录
+- `.claude/skills/` 是**符号链接**——Claude Code 只认这个路径，链接过去就能共用同一份文件
+- **好处**：不用为每个工具维护一份副本，更新一处全部生效
+
+#### skills-lock.json 的作用
+
+这个文件记录每个 skill 的来源和内容哈希：
+
+```json
+{
+  "version": 1,
+  "skills": {
+    "build-cmake": {
+      "source": "leokemp223/embed-ai-tool",
+      "sourceType": "github",
+      "skillPath": "skills/build-cmake/SKILL.md",
+      "computedHash": "93247950e539591b34a580a7d088ac6f29e893a9d10069f283bc35c757f5d169"
+    }
+  }
+}
+```
+
+它让 `npx skills update` 能判断哪些 skill 有更新——只重新拉取哈希变了的，不用全部重下。
+
+#### 单个 skill 的内部结构
+
+每个 skill 是一个目录，典型结构：
+
+```
+.agents/skills/flash-jlink/
+├── SKILL.md                 ← 主文件：告诉 AI 这个技能做什么、怎么用
+├── scripts/
+│   └── jlink_flasher.py     ← 可执行脚本，AI 会调用它
+├── references/
+│   └── usage.md             ← 详细参数说明
+└── agents/
+    └── openai.yaml          ← 其他 AI 工具的适配配置
+```
+
+`SKILL.md` 的格式是带 frontmatter 的 Markdown：
+
+```markdown
+---
+name: flash-jlink
+description: 当需要使用 SEGGER J-Link 探针烧录固件，或启动 RTT 日志捕获时使用。
+---
+
+# 正文：适用场景、必要输入、依赖、执行步骤
+```
+
+**关键点**：`description` 字段决定了 AI **什么时候**会加载这个 skill。所以这些 description 都写得很具体（"当需要…时使用"），而不是泛泛的"J-Link 相关"。
+
+#### 24 个 skill 一览
+
+| 分类 | Skills | 用途 |
+| --- | --- | --- |
+| **构建** | `build-cmake` `build-makefile` `build-keil` `build-iar` `build-platformio` `build-idf` | 解析工程、执行构建、定位固件产物 |
+| **烧录** | `flash-jlink` `flash-openocd` `flash-keil` `flash-platformio` `flash-idf` | 调对应工具烧录 |
+| **调试** | `debug-jlink` `debug-gdb-openocd` `debug-platformio` `rtos-debug` | GDB 会话、崩溃现场、RTOS 线程感知 |
+| **外设** | `serial-monitor` `serial-shell` `can-debug` `modbus-debug` `logic-analyzer` | 串口、CAN、Modbus、逻辑分析仪 |
+| **分析** | `memory-analysis` `static-analysis` | .map 解析、cppcheck/clang-tidy |
+| **仪器** | `visa-debug` | GPIB/USB/TCP 仪器通信 |
+| **编排** | `workflow` | 串联多个 skill 成流水线 |
+
+#### 最有价值的是 workflow
+
+`workflow` 能把你手动敲的一串命令变成一句话：
+
+```bash
+# 手动流程
+make -j$(nproc)
+st-flash --reset write build/firmware.bin 0x08000000
+picocom -b 115200 /dev/ttyUSB0
+
+# 用 workflow skill
+"编译这个 CMake 工程，烧录到板子，然后打开串口监控"
+```
+
+它会自动判断用哪个 build skill、哪个 flash skill，并串联起来。
+
+#### 验证
+
+```bash
+# 确认 24 个都在
+ls .agents/skills/ | wc -l
+# 24
+
+# 确认符号链接有效（Claude Code 能否看到）
+ls -la .claude/skills/ | head -3
+# build-cmake -> ../../.agents/skills/build-cmake
+
+# 确认锁定文件
+cat skills-lock.json | head -5
+```
+
+在 Claude Code 里，用 `/skills` 或者直接问"我有哪些 skills"就能看到它们被加载了。
+
+#### 更新
+
+```bash
+npx skills update          # 更新全部
+npx skills check           # 只检查不更新
+```
+
+因为装了 `skills-lock.json`，更新是增量的——只拉哈希变化的部分。
+
 ---
 
 ## 九、实战：Keil 工程迁移到 GCC
